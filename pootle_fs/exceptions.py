@@ -1,0 +1,4 @@
+
+
+class MissingPluginError(KeyError):
+    pass
