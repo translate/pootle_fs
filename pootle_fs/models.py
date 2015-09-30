@@ -27,7 +27,7 @@ class StoreFS(models.Model):
 
     @property
     def file(self):
-        return self.fs.fs_file(self.pootle_path, self.path)
+        return self.fs.fs_file(self)
 
     def save(self, *args, **kwargs):
         validated = validate_store_fs(
@@ -71,8 +71,8 @@ class ProjectFS(models.Model):
     ###########################
     # FS Plugin implementation
 
-    def fs_file(self, pootle_path, path):
-        return self.plugin.file_class(pootle_path, path)
+    def fs_file(self, fs_store):
+        return self.plugin.file_class(fs_store)
 
     def pull(self):
         return self.plugin.pull()

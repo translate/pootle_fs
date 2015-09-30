@@ -36,3 +36,9 @@ def _require_language(code, fullname, plurals=2, plural_equation='(n != 1)'):
 def english(root):
     """Require the English language."""
     return _require_language('en', 'English')
+
+
+@pytest.fixture
+def zulu(root):
+    """Require the English language."""
+    return _require_language('zu', 'Zulu')

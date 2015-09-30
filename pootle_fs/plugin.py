@@ -46,14 +46,18 @@ class Plugin(object):
             translation_project__project=self.project)
 
     @property
-    def translations(self):
+    def store_fs(self):
         from .models import StoreFS
-        return StoreFS.objects.filter(
-            store__translation_project__project=self.project)
+        return StoreFS.objects.filter(project=self.project)
 
     def fetch_translations(self):
-        for fs_file in self.find_translations():
-            fs_file.fetch()
+        from .models import StoreFS
+        for pootle_path, path in self.find_translations():
+            fs_store, created = StoreFS.objects.get_or_create(
+                project=self.project,
+                pootle_path=pootle_path,
+                path=path)
+            fs_store.file.fetch()
 
     def find_translations(self):
         config = self.read_config()
@@ -80,15 +84,16 @@ class Plugin(object):
                 subdirs = (
                     section_subdirs
                     + [m for m in
-                       matched.get('directory_path', '').strip("/").split("/")
+                       matched.get('directory_path', '').split("/")
                        if m])
-                yield self.file_class(
-                    "/".join(
-                        ["", self.project.code, language.code]
-                        + subdirs
-                        + [matched.get("filename")
-                           or os.path.basename(file_path)]),
-                    file_path.replace(self.local_fs_path, ""))
+
+                pootle_path = "/".join(
+                    ["", language.code, self.project.code]
+                    + subdirs
+                    + [matched.get("filename")
+                       or os.path.basename(file_path)])
+                path = file_path.replace(self.local_fs_path, "")
+                yield pootle_path, path
 
     def pull_translations(self):
         for fs_file in self.find_translations():
@@ -114,39 +119,7 @@ class Plugin(object):
 
     def status(self):
         self.pull()
-        status = dict(
-            CONFLICT=[],
-            FS_ADDED=[],
-            FS_AHEAD=[],
-            POOTLE_AHEAD=[])
-
-        for store_fs in self.translation_files:
-            fs_file = store_fs.file
-            fs_removed = not fs_file.exists
-            fs_added = (
-                store_fs.last_sync_hash is None)
-            fs_changed = (
-                store_fs.last_sync_hash is not None
-                and (fs_file.latest_commit
-                     != store_fs.last_sync_hash))
-            pootle_changed = (
-                store_fs.last_sync_hash is not None
-                and (store_fs.store.get_max_unit_revision()
-                     != store_fs.last_sync_revision))
-            if fs_removed:
-                status['FS_REMOVED'].append(store_fs)
-            elif fs_added:
-                status['FS_ADDED'].append(store_fs)
-            elif fs_changed and pootle_changed:
-                status['CONFLICT'].append(store_fs)
-            elif fs_changed:
-                status['FS_AHEAD'].append(store_fs)
-            elif pootle_changed:
-                status['POOTLE_AHEAD'].append(store_fs)
-
-        status['POOTLE_ADDED'] = self.stores.filter(fs__isnull=True)
-
-        return status
+        return ProjectFSStatus(self)
 
 
 class Plugins(object):
@@ -162,3 +135,63 @@ class Plugins(object):
 
     def __contains__(self, k):
         return k in self.__plugins__
+
+
+class ProjectFSStatus(object):
+
+    def __init__(self, fs):
+        self.fs = fs
+        self.__status__ = dict(
+            conflict=set(),
+            fs_added=set(),
+            fs_ahead=set(),
+            pootle_ahead=set(),
+            pootle_added=set())
+        for store_fs in self.fs.store_fs:
+            fs_file = store_fs.file
+            fs_removed = not fs_file.exists
+            fs_added = (
+                store_fs.last_sync_hash is None)
+            fs_changed = (
+                store_fs.last_sync_hash is not None
+                and (fs_file.latest_commit
+                     != store_fs.last_sync_hash))
+            pootle_changed = (
+                store_fs.last_sync_hash is not None
+                and (store_fs.store.get_max_unit_revision()
+                     != store_fs.last_sync_revision))
+            if fs_removed:
+                self.add("fs_removed", store_fs)
+            elif fs_added:
+                self.add("fs_added", store_fs)
+            elif fs_changed and pootle_changed:
+                self.add("conflict", store_fs)
+            elif fs_changed:
+                self.add("fs_ahead", store_fs)
+            elif pootle_changed:
+                self.add("pootle_ahead", store_fs)
+        for store in self.fs.stores.filter(fs__isnull=True):
+            self.add("pootle_added", store)
+
+    def __getitem__(self, k):
+        return self.__status__[k]
+
+    def __contains__(self, k):
+        return k in self.__status__ and self.__status__[k]
+
+    def __str__(self):
+        if self.has_changed:
+            return ("<ProjectFSStatus(%s): %s>"
+                    % (self.fs.project,
+                       ', '.join(["%s: %s" % (k, len(v))
+                                  for k, v in self.__status__.items()
+                                  if v])))
+        return "<ProjectFSStatus(%s): Everything up-to-date>" % self.fs.project
+
+    @property
+    def has_changed(self):
+        return any(self.__status__.values())
+
+    def add(self, k, v):
+        if k in self.__status__:
+            self.__status__[k].add(v)

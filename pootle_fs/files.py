@@ -4,19 +4,19 @@ from import_export.utils import import_file
 
 from pootle_language.models import Language
 from pootle_store.models import Store
-from pootle_project.models import Project
 from pootle_translationproject.models import TranslationProject
 
 
 class FSFile(object):
 
-    def __init__(self, pootle_path, path):
+    def __init__(self, fs_store):
         """
         :param pootle_path: Pootle path
         :param path: Path in FS of this file
         """
-        self.pootle_path = pootle_path
-        self.path = path
+        self.fs_store = fs_store
+        self.pootle_path = fs_store.pootle_path
+        self.path = fs_store.path
 
     def __str__(self):
         return "<%s: %s::%s>" % (
@@ -85,22 +85,11 @@ class FSFile(object):
     def store(self):
         if self.fs_store.store:
             return self.fs_store.store
-        if not self.directory:
-            return
         try:
             return Store.objects.get(
-                parent=self.directory, name=self.filename)
+                pootle_path=self.pootle_path)
         except Store.DoesNotExist:
             return
-
-    @property
-    def fs_store(self):
-        from pootle_fs.models import StoreFS
-        fs_store, created = StoreFS.objects.get_or_create(
-            project=Project.objects.get(code=self.project_code),
-            pootle_path=self.pootle_path,
-            path=self.path)
-        return fs_store
 
     @property
     def latest_hash(self):
