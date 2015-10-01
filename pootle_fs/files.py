@@ -1,7 +1,10 @@
 import os
+from datetime import datetime
 
-from import_export.utils import import_file
+# from import_export.utils import import_file
 
+
+from pootle_app.models import Directory
 from pootle_language.models import Language
 from pootle_store.models import Store
 from pootle_translationproject.models import TranslationProject
@@ -11,8 +14,7 @@ class FSFile(object):
 
     def __init__(self, fs_store):
         """
-        :param pootle_path: Pootle path
-        :param path: Path in FS of this file
+        :param fs_store: ``FSStore`` object
         """
         self.fs_store = fs_store
         self.pootle_path = fs_store.pootle_path
@@ -52,7 +54,7 @@ class FSFile(object):
     def language(self):
         if self.fs_store.store:
             return self.fs_store.store.translation_project.language
-        return Language.objects.get(code=self.pootle_path.split("/")[2])
+        return Language.objects.get(code=self.pootle_path.split("/")[1])
 
     @property
     def translation_project(self):
@@ -77,8 +79,10 @@ class FSFile(object):
         directory = self.translation_project.directory
         if self.directory_path:
             for subdir in self.directory_path.split("/"):
-                (directory,
-                 created) = directory.child_dirs.get_or_create(name=subdir)
+                try:
+                    directory = directory.child_dirs.get(name=subdir)
+                except Directory.DoesNotExist:
+                    return
         return directory
 
     @property
@@ -95,23 +99,66 @@ class FSFile(object):
     def latest_hash(self):
         raise NotImplementedError
 
+    def create_store(self):
+        if not self.translation_project:
+            TranslationProject.objects.create(
+                project=self.project,
+                language=self.language)
+        if not self.directory:
+            directory = self.translation_project.directory
+            if self.directory_path:
+                for subdir in self.directory_path.split("/"):
+                    directory, created = directory.child_dirs.get_or_create(
+                        name=subdir)
+        if not self.store:
+            store, created = Store.objects.get_or_create(
+                parent=self.directory, name=self.filename,
+                translation_project=self.translation_project)
+        if not self.fs_store.store == self.store:
+            self.fs_store.store = self.store
+            self.fs_store.save()
+
     def fetch(self):
-        fs_store = self.fs_store
-        if self.store and not fs_store.store:
-            fs_store.store = self.store
-            fs_store.save()
-        return fs_store
+        if self.store and not self.fs_store.store:
+            self.fs_store.store = self.store
+            self.fs_store.save()
+        return self.fs_store
 
     def pull(self):
-        with open(self.file_path) as f:
-            import_file(
-                f,
-                pootle_path=self.pootle_path,
-                rev=self.store.get_max_unit_revision())
-        fs_store = self.fs_store
-        fs_store.last_sync_hash = self.latest_hash
-        fs_store.last_sync_revision = self.store.get_max_unit_revision()
-        fs_store.save()
+        # check that file exists!
+
+        if not self.store:
+            self.create_store()
+        if not self.fs_store.store == self.store:
+            self.fs_store.store = self.store
+            self.fs_store.save()
+
+        # with open(self.file_path) as f:
+        #    import_file(
+        #        f,
+        #        pootle_path=self.pootle_path,
+        #        rev=self.store.get_max_unit_revision())
+        self.fs_store.last_sync_hash = self.latest_hash
+        self.fs_store.last_sync_revision = self.store.get_max_unit_revision()
+        self.fs_store.save()
+
+    def push(self):
+        # TODO: check that store exists!
+        current_revision = self.store.get_max_unit_revision()
+        last_revision = self.fs_store.last_sync_revision
+        if last_revision and (last_revision == current_revision):
+            return
+
+        directory = os.path.dirname(self.fs_store.file.file_path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        with open(self.file_path, "w") as f:
+            f.write(str(datetime.now()))
+
+        self.fs_store.last_sync_hash = self.latest_hash
+        self.fs_store.last_sync_revision = self.store.get_max_unit_revision()
+        self.fs_store.save()
 
     def read(self):
         # self.fs.pull()
