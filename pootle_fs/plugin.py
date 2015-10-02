@@ -81,7 +81,19 @@ class Plugin(object):
             if fs_file.fs_changed and fs_file.pootle_changed:
                 yield translation
 
-    def add_translations(self, pootle_path=None, fs_path=None, force=False):
+    def add_translations(self, force=False, pootle_path=None, fs_path=None):
+        """
+        Add translations from Pootle into the FS
+
+        If ``force``=``True`` is present it will also:
+        - add untracked conflicting files from Pootle
+        - mark tracked conflicting files to update from Pootle
+
+        :param force: Add conflicting translations.
+        :param fs_path: Path glob to filter translations matching FS path
+        :param pootle_path: Path glob to filter translations to add matching
+          ``pootle_path``
+        """
         from .models import StoreFS
         for store, path in self.addable_translations:
             if pootle_path is not None:
@@ -111,7 +123,19 @@ class Plugin(object):
                 translation.resolve_conflict = POOTLE_WINS
                 translation.save()
 
-    def fetch_translations(self, pootle_path=None, fs_path=None, force=False):
+    def fetch_translations(self, force=False, pootle_path=None, fs_path=None):
+        """
+        Add translations from FS into Pootle
+
+        If ``force``=``True`` is present it will also:
+        - add untracked conflicting files from FS
+        - mark tracked conflicting files to update from FS
+
+        :param force: Add conflicting translations.
+        :param fs_path: Path glob to filter translations matching FS path
+        :param pootle_path: Path glob to filter translations to add matching
+          ``pootle_path``
+        """
         from .models import StoreFS
         found_translations = self.find_translations(
             fs_path=fs_path, pootle_path=pootle_path)
@@ -139,6 +163,15 @@ class Plugin(object):
                 translation.save()
 
     def find_translations(self, fs_path=None, pootle_path=None):
+        """
+        Find translation file from the file system
+
+        :param force: Add conflicting translations.
+        :param fs_path: Path glob to filter translations matching FS path
+        :param pootle_path: Path glob to filter translations to add matching
+          ``pootle_path``
+        :yields pootle_path, fs_path:
+        """
         config = self.read_config()
 
         for section in config.sections():
@@ -179,18 +212,13 @@ class Plugin(object):
                         continue
                 yield _pootle_path, path
 
-    def _match_config_path(self, section, lang_code, subdirs, filename):
-        config = self.read_config()
-        if config.has_section(section):
-            translation_path = config.get(section, "translation_path")
-            matching = not (
-                subdirs
-                and "<directory_path>" not in translation_path)
-            if matching:
-                return translation_path.replace(
-                    "<lang>", lang_code).replace("<filename>", filename)
-
     def get_fs_path(self, store):
+        """
+        Reverse match an FS filepath from a ``Store`` using the project config.
+
+        :param store: A ``Store`` object to get the FS filepath for
+        :returns: An filepath relative to the FS root.
+        """
         parts = store.pootle_path.strip("/").split("/")
         lang_code = parts[0]
         subdirs = parts[2:-1]
@@ -205,7 +233,13 @@ class Plugin(object):
         if fs_path:
             return "/%s" % fs_path.lstrip("/")
 
-    def pull_translations(self, pootle_path=None, fs_path=None):
+    def pull_translations(self, prune=False, pootle_path=None, fs_path=None):
+        """
+        :param prune: Remove files that do not exist in the FS.
+        :param fs_path: Path glob to filter translations matching FS path
+        :param pootle_path: Path glob to filter translations to add matching
+          ``pootle_path``
+        """
         status = self.status()
         for fs_file in (status['fs_added'] + status['fs_ahead']):
             if pootle_path:
@@ -216,7 +250,35 @@ class Plugin(object):
                     continue
             fs_file.file.pull()
 
-    def push_translations(self, pootle_path=None, fs_path=None):
+        if prune:
+            for fs_file in (status['fs_removed']):
+                if pootle_path:
+                    if not fnmatch(fs_file.pootle_path, pootle_path):
+                        continue
+                if fs_path:
+                    if not fnmatch(fs_file.path, fs_path):
+                        continue
+                fs_file.file.delete()
+
+    def pull(self):
+        """
+        Pull the FS from external source if required.
+        """
+        pass
+
+    def push(self, message=None):
+        """
+        Push the FS to an external source if required.
+        """
+        pass
+
+    def push_translations(self, prune=False, pootle_path=None, fs_path=None):
+        """
+        :param prune: Remove files that do not exist in Pootle.
+        :param fs_path: Path glob to filter translations matching FS path
+        :param pootle_path: Path glob to filter translations to add matching
+          ``pootle_path``
+        """
         status = self.status()
         for fs_file in (status['pootle_added'] + status['pootle_ahead']):
             if pootle_path:
@@ -226,12 +288,16 @@ class Plugin(object):
                 if not fnmatch(fs_file.path, fs_path):
                     continue
             fs_file.file.push()
-
-    def pull(self):
-        pass
-
-    def push(self):
-        pass
+        if prune:
+            for fs_file in (status['pootle_removed']):
+                if pootle_path:
+                    if not fnmatch(fs_file.pootle_path, pootle_path):
+                        continue
+                if fs_path:
+                    if not fnmatch(fs_file.path, fs_path):
+                        continue
+                fs_file.file.delete()
+        self.push()
 
     def read(self, path):
         self.pull()
@@ -241,13 +307,39 @@ class Plugin(object):
         return content
 
     def read_config(self):
+        """
+        Read and parse the configuration for this project
+
+        :return config: Where ``config`` is an ``ConfigParser`` instance
+        """
         config = ConfigParser()
         config.readfp(io.BytesIO(self.read(self.fs.pootle_config)))
         return config
 
     def status(self):
+        """
+        Get a status object for showing current status of FS/Pootle
+
+        :return status: Where ``status`` is an instance of self.status_class
+        """
         self.pull()
         return self.status_class(self)
+
+    def _match_config_path(self, section, lang_code, subdirs, filename):
+        config = self.read_config()
+        if config.has_section(section):
+            path = config.get(section, "translation_path")
+            matching = not (
+                subdirs and "<directory_path>" not in path)
+            if matching:
+                path = (path.replace("<lang>",
+                                     lang_code)
+                            .replace("<filename>",
+                                     os.path.splitext(filename)[0]))
+                if subdirs:
+                    path = path.replace(
+                        "<directory_path>", '/'.join(subdirs))
+                return path
 
 
 class Plugins(object):

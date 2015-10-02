@@ -51,10 +51,6 @@ class FSFile(object):
         return self.fs_store.project
 
     @property
-    def project_code(self):
-        return self.pootle_path.split("/")[1]
-
-    @property
     def language(self):
         if self.fs_store.store:
             return self.fs_store.store.translation_project.language
@@ -121,6 +117,10 @@ class FSFile(object):
         raise NotImplementedError
 
     def create_store(self):
+        """
+        Creates a ```Store``` and if necessary the ```TranslationProject```
+        parent ```Directories```
+        """
         if not self.translation_project:
             TranslationProject.objects.create(
                 project=self.project,
@@ -139,19 +139,44 @@ class FSFile(object):
             self.fs_store.store = self.store
             self.fs_store.save()
 
+    def delete(self):
+        """
+        Delete the file from FS and Pootle
+
+        This does not commit/push
+        """
+        store = self.store
+        if store:
+            store.delete()
+        self.fs_store.delete()
+        self.remove_file()
+
+    def remove_file(self):
+        if self.exists:
+            os.unlink(self.file_path)
+
     def fetch(self):
+        """
+        Called when FS fils is fetched
+        """
         if self.store and not self.fs_store.store:
             self.fs_store.store = self.store
             self.fs_store.save()
         return self.fs_store
 
     def on_sync(self, latest_hash, revision):
+        """
+        Called after FS and Pootle have been synced
+        """
         self.fs_store.resolve_conflict = None
         self.fs_store.last_sync_hash = latest_hash
         self.fs_store.last_sync_revision = revision
         self.fs_store.save()
 
     def sync_to_pootle(self):
+        """
+        Update Pootle ``Store`` with the parsed FS file.
+        """
         # with open(self.file_path) as f:
         #    import_file(
         #        f,
@@ -162,6 +187,9 @@ class FSFile(object):
             self.store.get_max_unit_revision())
 
     def sync_from_pootle(self):
+        """
+        Update FS file with the serialized content from Pootle ```Store```
+        """
         with open(self.file_path, "w") as f:
             f.write(str(datetime.now()))
         self.on_sync(
@@ -169,6 +197,9 @@ class FSFile(object):
             self.store.get_max_unit_revision())
 
     def pull(self):
+        """
+        Pull FS file into Pootle
+        """
         if not self.store:
             self.create_store()
         if not self.fs_store.store == self.store:
@@ -177,6 +208,9 @@ class FSFile(object):
         self.sync_to_pootle()
 
     def push(self):
+        """
+        Push Pootle ``Store`` into FS
+        """
         # TODO: check that store exists!
         current_revision = self.store.get_max_unit_revision()
         last_revision = self.fs_store.last_sync_revision
