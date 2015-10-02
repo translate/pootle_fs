@@ -2,13 +2,17 @@ import os
 import re
 
 
+PATH_MAPPING = (
+    (".", "\."),
+    ("<lang>", "(?P<lang>[\w]*)"),
+    ("<filename>", "(?P<filename>[\w]*)"),
+    ("/<directory_path>/", "/<directory_path>"),
+    ("<directory_path>", "(?P<directory_path>[\w\/]*?)"))
+
+
 class TranslationFileFinder(object):
 
-    path_mapping = (
-        (".", "\."),
-        ("<lang>", "(?P<lang>[\w]*)"),
-        ("<filename>", "(?P<filename>[\w]*)"),
-        ("<directory_path>", "(?P<directory_path>[\w\/]*?)"))
+    path_mapping = PATH_MAPPING
 
     def __init__(self, translation_path):
         self.translation_path = translation_path

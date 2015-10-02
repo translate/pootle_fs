@@ -15,8 +15,7 @@ from pootle_fs.models import StoreFS
 from pootle_fs.status import ProjectFSStatus
 
 from ..fixtures.pootle_fs_fixtures import (
-    STATUS_TYPES, _test_status,
-    _edit_file, _remove_file, _remove_store, _update_store)
+    STATUS_TYPES, _test_status, _edit_file)
 
 
 @pytest.mark.django
@@ -51,145 +50,6 @@ def test_status(fs_plugin, english, zulu, expected_fs_stores):
 
 
 @pytest.mark.django
-def test_status_add_fs_not_matching(fs_plugin, english,
-                                    zulu, expected_fs_stores):
-    fs_plugin.fetch_translations()
-    fs_plugin.pull_translations()
-    status = fs_plugin.status()
-    assert status.has_changed is False
-    _edit_file(fs_plugin, "foo.po")
-    fs_plugin.fetch_translations()
-    status = fs_plugin.status()
-    assert status.has_changed is False
-
-
-@pytest.mark.django
-def test_status_conflict_untracked(fs_plugin_conflict_untracked):
-    _test_status(
-        fs_plugin_conflict_untracked,
-        dict(conflict_untracked=[(u'/en/tutorial/en.po', '/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_fs_untracked(fs_plugin_fs_untracked):
-    _test_status(
-        fs_plugin_fs_untracked,
-        dict(fs_untracked=[(u'/en/tutorial/en.po', '/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_pootle_untracked(fs_plugin_pootle_untracked):
-    _test_status(
-        fs_plugin_pootle_untracked,
-        dict(pootle_untracked=[
-                (Store.objects.get(pootle_path=u'/en/tutorial/en.po'),
-                 '/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_fs_added(fs_plugin_fs_untracked):
-    plugin = fs_plugin_fs_untracked
-    plugin.fetch_translations()
-    _test_status(
-        plugin,
-        dict(
-            fs_added=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_pootle_added(fs_plugin_pootle_untracked):
-    plugin = fs_plugin_pootle_untracked
-    plugin.add_translations()
-    _test_status(
-        plugin,
-        dict(
-            pootle_added=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_pootle_ahead(fs_plugin_pootle_untracked, system):
-    plugin = fs_plugin_pootle_untracked
-    plugin.add_translations()
-    plugin.push_translations()
-    _update_store(plugin)
-    print plugin.status()
-    _test_status(
-        plugin,
-        dict(
-            pootle_ahead=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_fs_ahead(fs_plugin_fs_untracked):
-    plugin = fs_plugin_fs_untracked
-    plugin.fetch_translations()
-    plugin.pull_translations()
-    _edit_file(plugin, "po/en.po")
-    _test_status(
-        plugin,
-        dict(
-            fs_ahead=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_fs_removed(fs_plugin_fs_untracked):
-    plugin = fs_plugin_fs_untracked
-    plugin.fetch_translations()
-    plugin.pull_translations()
-    _remove_file(plugin, "po/en.po")
-    _test_status(
-        plugin,
-        dict(
-            fs_removed=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_pootle_removed(fs_plugin_pootle_untracked):
-    plugin = fs_plugin_pootle_untracked
-    plugin.add_translations()
-    plugin.push_translations()
-    _remove_store(plugin)
-    _test_status(
-        plugin,
-        dict(
-            pootle_removed=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
-def test_status_conflict(fs_plugin_fs_untracked, system):
-    plugin = fs_plugin_fs_untracked
-    plugin.fetch_translations()
-    plugin.pull_translations()
-    _edit_file(plugin, "po/en.po")
-    _update_store(plugin)
-    _test_status(
-        plugin,
-        dict(
-            conflict=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
 def test_status_check_status(fs_plugin_fs_untracked, system):
     plugin = fs_plugin_fs_untracked
     plugin.fetch_translations()
@@ -199,3 +59,23 @@ def test_status_check_status(fs_plugin_fs_untracked, system):
     _edit_file(plugin, "po/en.po")
     status.check_status()
     assert status.has_changed is True
+
+
+@pytest.mark.django
+def test_statuses(fs_status):
+    plugin, cb, outcome = fs_status
+    cb(plugin)
+    if outcome:
+        for k, v in outcome.items():
+            if k in ["fs_untracked", "conflict_untracked"]:
+                continue
+            if k == "pootle_untracked":
+                outcome[k] = [
+                    (Store.objects.get(pootle_path=pp), p)
+                    for pp, p in v]
+            else:
+                outcome[k] = [
+                    StoreFS.objects.get(
+                        pootle_path=pp, path=p)
+                    for pp, p in v]
+    _test_status(plugin, outcome)

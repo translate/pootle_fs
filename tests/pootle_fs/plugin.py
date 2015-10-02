@@ -15,7 +15,7 @@ from pootle_store.models import Store
 from pootle_fs.models import StoreFS
 
 from ..fixtures.pootle_fs_fixtures import (
-    _test_status, _edit_file, _update_store, _setup_store)
+    _test_status, _edit_file, _setup_store)
 
 
 @pytest.mark.django
@@ -52,13 +52,6 @@ def test_plugin_read_config(fs_plugin):
 
 
 @pytest.mark.django
-def test_plugin_find_translations(fs_plugin_pulled, expected_fs_stores):
-    plugin = fs_plugin_pulled
-    assert plugin.status().has_changed is False
-    # test that Store objects have been created/updated
-
-
-@pytest.mark.django
 def test_plugin_push_translations(fs_plugin_pulled, expected_fs_stores):
     plugin = fs_plugin_pulled
 
@@ -86,98 +79,36 @@ def test_plugin_push_translations(fs_plugin_pulled, expected_fs_stores):
 
 
 @pytest.mark.django
-def test_plugin_untracked_conflict_pootle_wins(fs_plugin_conflict_untracked):
-    plugin = fs_plugin_conflict_untracked
-    conflict = plugin.status()['conflict_untracked']
+def test_plugin_conflict(fs_plugin_conflicted_param):
+    name, plugin, callback, outcome = fs_plugin_conflicted_param
+    conflict_type = "conflict"
+    if name.startswith("conflict_untracked"):
+        conflict_type = "conflict_untracked"
+    conflict = plugin.status()[conflict_type]
     assert conflict
-
-    # add_translations wont add the conflicted file
-    plugin.add_translations()
-    _test_status(plugin, dict(conflict_untracked=conflict))
-
-    # but add_translations with ``force`` will
-    plugin.add_translations(force=True)
-    _test_status(
-        plugin,
-        dict(
-            pootle_added=[
+    callback(plugin)
+    if outcome:
+        for k, v in outcome.items():
+            outcome[k] = [
                 StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
-def test_plugin_untracked_conflict_fs_wins(fs_plugin_conflict_untracked):
-    plugin = fs_plugin_conflict_untracked
-    conflict = plugin.status()['conflict_untracked']
-    assert conflict
-
-    # fetch_translations wont add the conflicted file
-    plugin.fetch_translations()
-    _test_status(plugin, dict(conflict_untracked=conflict))
-
-    # but fetch_translations with ``force`` will
-    plugin.fetch_translations(force=True)
-    _test_status(
-        plugin,
-        dict(
-            fs_added=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/po/en.po')]))
-
-
-@pytest.mark.django
-def test_plugin_conflict_pootle_wins(fs_plugin_pulled, system):
-    plugin = fs_plugin_pulled
-    _edit_file(plugin, "gnu_style/po/en.po")
-    _update_store(plugin)
-
-    conflict = plugin.status()["conflict"]
-    assert conflict
-
-    # add_translations wont add the conflicted file
-    plugin.add_translations()
-    _test_status(plugin, dict(conflict=conflict))
-
-    # but it will if we force
-    plugin.add_translations(force=True)
-    _test_status(
-        plugin,
-        dict(
-            pootle_ahead=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/gnu_style/po/en.po')]))
-
-
-@pytest.mark.django
-def test_plugin_conflict_fs_wins(fs_plugin_pulled, system):
-    plugin = fs_plugin_pulled
-
-    _edit_file(plugin, "gnu_style/po/en.po")
-    _update_store(plugin)
-
-    conflict = plugin.status()["conflict"]
-    assert conflict
-
-    # fetch_translations wont add the conflicted file
-    plugin.fetch_translations()
-    _test_status(plugin, dict(conflict=conflict))
-
-    # but it will if we force
-    plugin.fetch_translations(force=True)
-    _test_status(
-        plugin,
-        dict(
-            fs_ahead=[
-                StoreFS.objects.get(
-                    pootle_path=u'/en/tutorial/en.po',
-                    path='/gnu_style/po/en.po')]))
+                    pootle_path=pp, path=p)
+                for pp, p in v]
+    else:
+        outcome = {conflict_type: conflict}
+    _test_status(plugin, outcome)
 
 
 ########
 # TODO:
+
+
+@pytest.mark.django
+def test_plugin_find_translations(fs_plugin_pulled, expected_fs_stores):
+    plugin = fs_plugin_pulled
+    assert plugin.status().has_changed is False
+    # test that Store objects have been created/updated
+
+
 @pytest.mark.django
 def test_plugin_add_translations_path(fs_plugin_pulled):
     plugin = fs_plugin_pulled

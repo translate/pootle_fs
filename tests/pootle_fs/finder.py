@@ -14,333 +14,57 @@ from pootle_fs.finder import TranslationFileFinder
 
 
 @pytest.mark.django
-def test_finder_file_root():
+def test_finder_file_root(finder_root_paths):
     dir_path = "/some/path"
-
+    path, expected = finder_root_paths
     assert (
         TranslationFileFinder(
-            os.path.join(dir_path, "<lang>.po")).file_root
-        == dir_path)
-
-    assert (
-        TranslationFileFinder(
-            os.path.join(dir_path, "foo/<lang>.po")).file_root
-        == os.path.join(dir_path, "foo"))
-
-    assert (
-        TranslationFileFinder(
-            os.path.join(
-                dir_path,
-                "foo/bar/baz-<filename>-<lang>.po")).file_root
-        == os.path.join(dir_path, "foo/bar"))
+            os.path.join(dir_path, path)).file_root
+        == (
+            expected
+            and os.path.join(dir_path, expected)
+            or dir_path))
 
 
 @pytest.mark.django
-def test_finder_bad_paths():
+def test_finder_bad_paths(bad_finder_paths):
     dir_path = "/some/path"
-
-    # missing <lang>
     with pytest.raises(ValueError):
-        TranslationFileFinder(os.path.join(dir_path, "lang/foo.po"))
-
-    # invalid <foo> tag
-    with pytest.raises(ValueError):
-        TranslationFileFinder(os.path.join(dir_path, "<lang>/<foo>.po"))
-
-    # "../foo/bar"
-    with pytest.raises(ValueError):
-        TranslationFileFinder(os.path.join(dir_path, "../<lang>/foo.po"))
-
-    # "foo/../bar"
-    with pytest.raises(ValueError):
-        TranslationFileFinder(os.path.join(dir_path, "<lang>/../foo.po"))
-
-    # "foo/bar/.."
-    with pytest.raises(ValueError):
-        TranslationFileFinder(os.path.join(dir_path, "<lang>/.."))
-
-    # "foo/@<lang>/bar.po"
-    with pytest.raises(ValueError):
-        TranslationFileFinder(os.path.join(dir_path, "foo/@<lang>/bar.po"))
+        TranslationFileFinder(os.path.join(dir_path, bad_finder_paths))
 
 
 @pytest.mark.django
-def test_finder_regex():
+def test_finder_regex(finder_regexes):
     dir_path = "/some/path"
-
-    translation_path = os.path.join(dir_path, "<lang>.po")
+    translation_path = os.path.join(dir_path, finder_regexes)
     finder = TranslationFileFinder(translation_path)
-    assert(
-        finder.regex.pattern
-        == ("%s$"
-            % (translation_path.replace(".", "\.")
-                               .replace("<lang>", "(?P<lang>[\w]*)"))))
-
-    translation_path = os.path.join(dir_path, "<lang>/<filename>.po")
-    finder = TranslationFileFinder(translation_path)
-    assert(
-        finder.regex.pattern
-        == ("%s$"
-            % (translation_path.replace(".", "\.")
-                               .replace("<lang>", "(?P<lang>[\w]*)")
-                               .replace("<filename>", "(?P<filename>[\w]*)"))))
-
-    translation_path = os.path.join(dir_path, "<directory_path>/<lang>.po")
-    finder = TranslationFileFinder(translation_path)
-    assert(
-        finder.regex.pattern
-        == ("%s$"
-            % (translation_path.replace(".", "\.")
-                               .replace("<directory_path>",
-                                        "(?P<directory_path>[\w\/]*?)")
-                               .replace("<lang>", "(?P<lang>[\w]*)"))))
-
-    translation_path = os.path.join(
-        dir_path, "<lang><directory_path>/<filename>.po")
-    finder = TranslationFileFinder(translation_path)
-    assert(
-        finder.regex.pattern
-        == ("%s$"
-            % (translation_path.replace(".", "\.")
-                               .replace("<directory_path>",
-                                        "(?P<directory_path>[\w\/]*?)")
-                               .replace("<lang>", "(?P<lang>[\w]*)")
-                               .replace("<filename>", "(?P<filename>[\w]*)"))))
+    path = translation_path
+    for k, v in TranslationFileFinder.path_mapping:
+        path = path.replace(k, v)
+    assert finder.regex.pattern == "%s$" % path
 
 
 @pytest.mark.django
-def test_finder_regex_match_gnu():
+def test_finder_match(finder_matches):
     dir_path = "/some/path"
+    match_path, not_matching, matching = finder_matches
+    finder = TranslationFileFinder(os.path.join(dir_path, match_path))
 
-    translation_path = os.path.join(
-        dir_path, "po/<lang>.po")
-    finder = TranslationFileFinder(translation_path)
-
-    match = finder.match(os.path.join(dir_path, "en.po"))
-    assert not match
-
-    match = finder.match(os.path.join(dir_path, "foo/bar/en.po"))
-    assert not match
-
-    match = finder.match(os.path.join(dir_path, "po/en.po"))
-    assert match
-    named = match.groupdict()
-    assert named["lang"] == "en"
-    assert "directory_path" not in named
-    assert "filename" not in named
+    for path in not_matching:
+        assert not finder.match(
+            os.path.join(dir_path, path))
+    for path, expected in matching:
+        match = finder.match(os.path.join(dir_path, path))
+        assert match
+        named = match.groupdict()
+        for k in ["lang", "directory_path", "filename"]:
+            if k in expected:
+                assert named[k].strip("/") == expected[k]
+            else:
+                assert k not in named
 
 
 @pytest.mark.django
-def test_finder_regex_match_gnu_named_folders():
-    dir_path = "/some/path"
-
-    translation_path = os.path.join(
-        dir_path, "po-<filename>/<lang>.po")
-    finder = TranslationFileFinder(translation_path)
-
-    match = finder.match(os.path.join(dir_path, "en.po"))
-    assert not match
-
-    match = finder.match(os.path.join(dir_path, "po/en.po"))
-    assert not match
-
-    match = finder.match(os.path.join(dir_path, "po-foo/en.po"))
-    assert match
-
-    named = match.groupdict()
-    assert named["lang"] == "en"
-    assert "directory_path" not in named
-    assert named["filename"] == "foo"
-
-
-@pytest.mark.django
-def test_finder_regex_match_gnu_named_files():
-    dir_path = "/some/path"
-
-    translation_path = os.path.join(
-        dir_path, "po/<filename>-<lang>.po")
-    finder = TranslationFileFinder(translation_path)
-
-    match = finder.match(os.path.join(dir_path, "en.po"))
-    assert not match
-
-    match = finder.match(os.path.join(dir_path, "po/en.po"))
-    assert not match
-
-    match = finder.match(os.path.join(dir_path, "po/foo-en.po"))
-    assert match
-
-    named = match.groupdict()
-    assert named["lang"] == "en"
-    assert "directory_path" not in named
-    assert named["filename"] == "foo"
-
-
-@pytest.mark.django
-def test_finder_regex_match_non_gnu():
-    dir_path = "/some/path"
-
-    translation_path = os.path.join(
-        dir_path, "<lang><directory_path>/<filename>.po")
-    finder = TranslationFileFinder(translation_path)
-
-    match = finder.match(os.path.join(dir_path, "foo.po"))
-    assert not match
-
-    match = finder.match(os.path.join(dir_path, "en/foo.po"))
-    assert match
-    named = match.groupdict()
-    assert named["lang"] == "en"
-    assert named["directory_path"] == ""
-    assert named["filename"] == "foo"
-
-    match = finder.match(os.path.join(dir_path, "en/bar/baz/foo.po"))
-    assert match
-    named = match.groupdict()
-    assert named["lang"] == "en"
-    assert named["directory_path"].strip("/") == "bar/baz"
-    assert named["filename"] == "foo"
-
-
-@pytest.mark.django
-def test_finder_regex_match_non_gnu_reversed():
-    dir_path = "/some/path"
-    translation_path = os.path.join(
-        dir_path, "<directory_path><lang>/<filename>.po")
-    finder = TranslationFileFinder(translation_path)
-
-    match = finder.match(os.path.join(dir_path, "foo.po"))
-    assert not match
-
-    match = finder.match(os.path.join(dir_path, "en/foo.po"))
-    assert match
-    named = match.groupdict()
-    assert named["lang"] == "en"
-    assert named["directory_path"] == ""
-    assert named["filename"] == "foo"
-
-    match = finder.match(os.path.join(dir_path, "bar/baz/en/foo.po"))
-    assert match
-    named = match.groupdict()
-    assert named["lang"] == "en"
-    assert named["directory_path"].strip("/") == "bar/baz"
-    assert named["filename"] == "foo"
-
-
-@pytest.mark.django
-def test_finder_find_gnu_style(tmp_pootle_fs):
-    dir_path = os.path.join(str(tmp_pootle_fs.dirpath()), "example_fs")
-
-    translation_path = os.path.join(
-        dir_path, "gnu_style/po/<lang>.po")
-    finder = TranslationFileFinder(translation_path)
-
-    expected = (
-        (os.path.join(dir_path, "gnu_style/po/zu.po"),
-         dict(lang="zu",
-              directory_path="")),
-        (os.path.join(dir_path, "gnu_style/po/en.po"),
-         dict(lang="en",
-              directory_path="")))
-
-    assert sorted(expected) == sorted(f for f in finder.find())
-
-
-@pytest.mark.django
-def test_finder_find_gnu_style_named_folders(tmp_pootle_fs):
-    dir_path = os.path.join(str(tmp_pootle_fs.dirpath()), "example_fs")
-    finder = TranslationFileFinder(os.path.join(
-        dir_path, "gnu_style_named_folders/po-<filename>/<lang>.po"))
-    expected = (
-        (os.path.join(dir_path, "gnu_style_named_folders/po-example1/en.po"),
-         dict(lang="en",
-              filename="example1.po",
-              directory_path="")),
-        (os.path.join(dir_path, "gnu_style_named_folders/po-example1/zu.po"),
-         dict(lang="zu",
-              filename="example1.po",
-              directory_path="")),
-        (os.path.join(dir_path, "gnu_style_named_folders/po-example2/en.po"),
-         dict(lang="en",
-              filename="example2.po",
-              directory_path="")),
-        (os.path.join(dir_path, "gnu_style_named_folders/po-example2/zu.po"),
-         dict(lang="zu",
-              filename="example2.po",
-              directory_path="")))
-    assert sorted(expected) == sorted(f for f in finder.find())
-
-
-@pytest.mark.django
-def test_finder_find_gnu_style_named_files(tmp_pootle_fs):
-    dir_path = os.path.join(str(tmp_pootle_fs.dirpath()), "example_fs")
-    finder = TranslationFileFinder(os.path.join(
-        dir_path, "gnu_style_named_files/po/<filename>-<lang>.po"))
-    expected = (
-        (os.path.join(dir_path, "gnu_style_named_files/po/example1-en.po"),
-         dict(lang="en",
-              filename="example1.po",
-              directory_path="")),
-        (os.path.join(dir_path, "gnu_style_named_files/po/example1-zu.po"),
-         dict(lang="zu",
-              filename="example1.po",
-              directory_path="")),
-        (os.path.join(dir_path, "gnu_style_named_files/po/example2-en.po"),
-         dict(lang="en",
-              filename="example2.po",
-              directory_path="")),
-        (os.path.join(dir_path, "gnu_style_named_files/po/example2-zu.po"),
-         dict(lang="zu",
-              filename="example2.po",
-              directory_path="")))
-    assert sorted(expected) == sorted(f for f in finder.find())
-
-
-@pytest.mark.django
-def test_finder_find_non_gnu(tmp_pootle_fs):
-    dir_path = os.path.join(str(tmp_pootle_fs.dirpath()), "example_fs")
-    finder = TranslationFileFinder(
-        os.path.join(
-            dir_path,
-            "non_gnu_style/locales/<lang><directory_path>/<filename>.po"))
-    expected = (
-        (os.path.join(dir_path,
-                      "non_gnu_style/locales/en/example1.po"),
-         dict(lang="en",
-              filename="example1.po",
-              directory_path="")),
-        (os.path.join(dir_path,
-                      "non_gnu_style/locales/zu/example1.po"),
-         dict(lang="zu",
-              filename="example1.po",
-              directory_path="")),
-        (os.path.join(dir_path,
-                      "non_gnu_style/locales/en/example2.po"),
-         dict(lang="en",
-              filename="example2.po",
-              directory_path="")),
-        (os.path.join(dir_path, "non_gnu_style/locales/zu/example2.po"),
-         dict(lang="zu",
-              filename="example2.po",
-              directory_path="")),
-        (os.path.join(dir_path,
-                      "non_gnu_style/locales/en/subsubdir/example3.po"),
-         dict(lang="en",
-              filename="example3.po",
-              directory_path="subsubdir")),
-        (os.path.join(dir_path,
-                      "non_gnu_style/locales/zu/subsubdir/example3.po"),
-         dict(lang="zu",
-              filename="example3.po",
-              directory_path="subsubdir")),
-        (os.path.join(dir_path,
-                      "non_gnu_style/locales/en/subsubdir/example4.po"),
-         dict(lang="en",
-              filename="example4.po",
-              directory_path="subsubdir")),
-        (os.path.join(dir_path,
-                      "non_gnu_style/locales/zu/subsubdir/example4.po"),
-         dict(lang="zu",
-              filename="example4.po",
-              directory_path="subsubdir")))
+def test_finder_find(fs_finder):
+    finder, expected = fs_finder
     assert sorted(expected) == sorted(f for f in finder.find())
