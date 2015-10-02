@@ -31,6 +31,11 @@ class TranslationFileFinder(object):
                     matched = match.groupdict()
                     matched["directory_path"] = (
                         matched.get("directory_path", "").strip("/"))
+                    if matched.get("filename"):
+                        matched["filename"] = (
+                            "%s%s"
+                            % (matched["filename"],
+                               os.path.splitext(file_path)[1]))
                     yield file_path, matched
 
     def match(self, file_path):

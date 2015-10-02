@@ -142,13 +142,13 @@ Possible status
   or ``push_translations`` using ``--force`` to keep the FS version or Pootle
   version respectively.
 
-``conflict_new``
-  A conflict can also arise if a file on the FS has status ``fs_new`` and a
-  matching ``Store`` has status ``pootle_new`` in this case you can use either
+``conflict_untracked``
+  A conflict can also arise if a file on the FS has status ``fs_untracked`` and a
+  matching ``Store`` has status ``pootle_untracked`` in this case you can use either
   ``fetch_translations`` or ``add_translations`` with ``--force`` depending on
   whether you want to keep the FS file or the ``Store``.
 
-``pootle_new``
+``pootle_untracked``
   A new store has been added in Pootle and matches a ``translation_path`` in
   ``.pootle.ini``, but does not have any ``StoreFS`` sync configuration. The
   next step would be to use ``add_translations`` to add a configuration.
@@ -165,7 +165,7 @@ Possible status
 ``pootle_removed``
   A previously synced ``Store`` has been removed.
 
-``fs_new``
+``fs_untracked``
   A new file has been added in FS and matches a ``translation_path`` in
   ``.pootle.ini``, but does not have any ``StoreFS`` sync configuration. The
   next step would be to use ``fetch_translations`` to add a configuration.

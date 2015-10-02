@@ -10,12 +10,12 @@
 import pytest
 
 from ..fixtures.pootle_fs_fixtures import _clear_plugins
+from pootle_fs import Plugin, plugins
 
 
 @pytest.mark.django
 def test_register_plugin():
     _clear_plugins()
-    from pootle_fs import Plugin, plugins
 
     class ExamplePlugin(Plugin):
         name = "example"

@@ -9,15 +9,27 @@ from .managers import (
     StoreFSManager, validate_store_fs)
 
 
+POOTLE_WINS = 1
+FS_WINS = 2
+
+
 class StoreFS(models.Model):
     project = models.ForeignKey(
         Project, related_name='store_fs')
     pootle_path = models.CharField(max_length=255, blank=False)
     path = models.CharField(max_length=255, blank=False)
-    store = models.ForeignKey(Store, related_name='fs', blank=True, null=True)
+    store = models.ForeignKey(
+        Store, related_name='fs', blank=True, null=True,
+        on_delete=models.SET_NULL)
     last_sync_revision = models.IntegerField(blank=True, null=True)
     last_sync_mtime = models.DateTimeField(null=True, blank=True)
     last_sync_hash = models.CharField(max_length=32, blank=True, null=True)
+    resolve_conflict = models.IntegerField(
+        blank=True, null=True,
+        default=0,
+        choices=[(0, ""),
+                 (POOTLE_WINS, "pootle"),
+                 (FS_WINS, "fs")])
 
     objects = StoreFSManager()
 

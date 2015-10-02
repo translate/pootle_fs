@@ -1,3 +1,4 @@
+from fnmatch import fnmatch
 import io
 import logging
 import os
@@ -10,6 +11,9 @@ from pootle_store.models import Store
 
 from .files import FSFile
 from .finder import TranslationFileFinder
+from .models import FS_WINS, POOTLE_WINS
+from .status import ProjectFSStatus
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +21,7 @@ logger = logging.getLogger(__name__)
 class Plugin(object):
     name = None
     file_class = FSFile
+    status_class = ProjectFSStatus
 
     def __init__(self, fs):
         from .models import ProjectFS
@@ -67,39 +72,73 @@ class Plugin(object):
         return (self.translations.exclude(last_sync_revision__isnull=True)
                                  .exclude(last_sync_hash__isnull=True))
 
-    def get_fs_path(self, store):
-        config = self.read_config()
-        parts = store.pootle_path.strip("/").split("/")
-        lang_code = parts[0]
-        subdirs = parts[2:-1]
-        filename = parts[-1]
-        if subdirs:
-            section = subdirs[0]
-            if config.has_section(section):
-                translation_path = config.get(section, "translation_path")
-                if subdirs[1:] and "<directory_path>" not in translation_path:
-                    return
-                return translation_path.replace(
-                    "<lang>", lang_code).replace("<filename>", filename)
+    @property
+    def conflicting_translations(self):
+        unresolved = self.synced_translations.filter(
+            resolve_conflict__isnull=True)
+        for translation in unresolved:
+            fs_file = translation.file
+            if fs_file.fs_changed and fs_file.pootle_changed:
+                yield translation
 
-    def add_translations(self, path=None):
+    def add_translations(self, pootle_path=None, fs_path=None, force=False):
         from .models import StoreFS
         for store, path in self.addable_translations:
-            StoreFS.objects.create(
+            if pootle_path is not None:
+                if not fnmatch(store.pootle_path, pootle_path):
+                    continue
+            if fs_path is not None:
+                if not fnmatch(path, fs_path):
+                    continue
+            fs_store = StoreFS.objects.create(
                 project=self.project,
-                pootle_path=store.pootle_path,
+                store=store,
                 path=path)
+            if fs_store.file.exists and not force:
+                fs_store.delete()
+            else:
+                # Mark this as added from FS in case of any conflict
+                fs_store.resolve_conflict = POOTLE_WINS
+                fs_store.save()
+        if force:
+            for translation in self.conflicting_translations:
+                if fs_path is not None:
+                    if not fnmatch(translation.path, fs_path):
+                        continue
+                if pootle_path is not None:
+                    if not fnmatch(translation.pootle_path, pootle_path):
+                        continue
+                translation.resolve_conflict = POOTLE_WINS
+                translation.save()
 
-    def fetch_translations(self):
+    def fetch_translations(self, pootle_path=None, fs_path=None, force=False):
         from .models import StoreFS
-        for pootle_path, path in self.find_translations():
+        found_translations = self.find_translations(
+            fs_path=fs_path, pootle_path=pootle_path)
+        for _pootle_path, path in found_translations:
             fs_store, created = StoreFS.objects.get_or_create(
                 project=self.project,
-                pootle_path=pootle_path,
+                pootle_path=_pootle_path,
                 path=path)
+            if not force and (created and fs_store.store):
+                # conflict
+                fs_store.delete()
+            elif created:
+                fs_store.resolve_conflict = FS_WINS
+                fs_store.save()
             fs_store.file.fetch()
+        if force:
+            for translation in self.conflicting_translations:
+                if fs_path is not None:
+                    if not fnmatch(translation.path, fs_path):
+                        continue
+                if pootle_path is not None:
+                    if not fnmatch(translation.pootle_path, pootle_path):
+                        continue
+                translation.resolve_conflict = FS_WINS
+                translation.save()
 
-    def find_translations(self):
+    def find_translations(self, fs_path=None, pootle_path=None):
         config = self.read_config()
 
         for section in config.sections():
@@ -113,6 +152,10 @@ class Plugin(object):
                     self.local_fs_path,
                     config.get(section, "translation_path")))
             for file_path, matched in finder.find():
+                path = file_path.replace(self.local_fs_path, "")
+                if fs_path is not None:
+                    if not fnmatch(path, fs_path):
+                        continue
                 lang_code = matched['lang']
                 try:
                     language = Language.objects.get(code=lang_code)
@@ -126,21 +169,62 @@ class Plugin(object):
                     + [m for m in
                        matched.get('directory_path', '').split("/")
                        if m])
-
-                pootle_path = "/".join(
+                _pootle_path = "/".join(
                     ["", language.code, self.project.code]
                     + subdirs
                     + [matched.get("filename")
                        or os.path.basename(file_path)])
-                path = file_path.replace(self.local_fs_path, "")
-                yield pootle_path, path
+                if pootle_path is not None:
+                    if not fnmatch(_pootle_path, pootle_path):
+                        continue
+                yield _pootle_path, path
 
-    def pull_translations(self, path=None):
-        for fs_file in self.translations:
+    def _match_config_path(self, section, lang_code, subdirs, filename):
+        config = self.read_config()
+        if config.has_section(section):
+            translation_path = config.get(section, "translation_path")
+            matching = not (
+                subdirs
+                and "<directory_path>" not in translation_path)
+            if matching:
+                return translation_path.replace(
+                    "<lang>", lang_code).replace("<filename>", filename)
+
+    def get_fs_path(self, store):
+        parts = store.pootle_path.strip("/").split("/")
+        lang_code = parts[0]
+        subdirs = parts[2:-1]
+        filename = parts[-1]
+        fs_path = None
+        if subdirs:
+            fs_path = self._match_config_path(
+                subdirs[0], lang_code, subdirs[1:], filename)
+        if not fs_path:
+            fs_path = self._match_config_path(
+                "default", lang_code, subdirs, filename)
+        if fs_path:
+            return "/%s" % fs_path.lstrip("/")
+
+    def pull_translations(self, pootle_path=None, fs_path=None):
+        status = self.status()
+        for fs_file in (status['fs_added'] + status['fs_ahead']):
+            if pootle_path:
+                if not fnmatch(fs_file.pootle_path, pootle_path):
+                    continue
+            if fs_path:
+                if not fnmatch(fs_file.path, fs_path):
+                    continue
             fs_file.file.pull()
 
-    def push_translations(self, path=None):
-        for fs_file in self.translations:
+    def push_translations(self, pootle_path=None, fs_path=None):
+        status = self.status()
+        for fs_file in (status['pootle_added'] + status['pootle_ahead']):
+            if pootle_path:
+                if not fnmatch(fs_file.pootle_path, pootle_path):
+                    continue
+            if fs_path:
+                if not fnmatch(fs_file.path, fs_path):
+                    continue
             fs_file.file.push()
 
     def pull(self):
@@ -150,20 +234,20 @@ class Plugin(object):
         pass
 
     def read(self, path):
+        self.pull()
         target = os.path.join(self.local_fs_path, path)
         with open(target) as f:
             content = f.read()
         return content
 
     def read_config(self):
-        self.pull()
         config = ConfigParser()
         config.readfp(io.BytesIO(self.read(self.fs.pootle_config)))
         return config
 
     def status(self):
         self.pull()
-        return ProjectFSStatus(self)
+        return self.status_class(self)
 
 
 class Plugins(object):
@@ -179,160 +263,3 @@ class Plugins(object):
 
     def __contains__(self, k):
         return k in self.__plugins__
-
-
-class ProjectFSStatus(object):
-
-    @property
-    def store_fs_paths(self):
-        return self.fs.translations.values_list("pootle_path", flat=True)
-
-    @property
-    def store_paths(self):
-        return self.fs.stores.values_list("pootle_path", flat=True)
-
-    def get_conflict_new(self):
-        for pootle_path, path in self.fs.find_translations():
-            if pootle_path in self.store_fs_paths:
-                continue
-            if pootle_path in self.store_paths:
-                yield pootle_path, path
-
-    def get_fs_new(self):
-        for pootle_path, path in self.fs.find_translations():
-            if pootle_path in self.store_fs_paths:
-                continue
-            yield pootle_path, path
-
-    def get_pootle_new(self):
-        for store, path in self.fs.addable_translations:
-            target = os.path.join(self.fs.local_fs_path, path)
-            if not os.path.exists(target):
-                yield store, path
-
-    def get_pootle_added(self):
-        for store_fs in self.fs.unsynced_translations:
-            if not store_fs.file.exists and not store_fs.store:
-                # orphaned - delete?
-                pass
-            elif store_fs.store:
-                yield store_fs
-
-    def get_fs_added(self):
-        for store_fs in self.fs.unsynced_translations:
-            if not store_fs.file.exists and not store_fs.store:
-                # orphaned - delete?
-                pass
-            elif store_fs.file.exists:
-                yield store_fs
-
-    def get_fs_removed(self):
-        for store_fs in self.fs.synced_translations:
-            if not store_fs.file.exists and store_fs.store:
-                yield store_fs
-
-    def get_pootle_removed(self):
-        for store_fs in self.fs.synced_translations:
-            if store_fs.file.exists and not store_fs.store:
-                yield store_fs
-
-    def get_both_removed(self):
-        for store_fs in self.fs.synced_translations:
-            if not store_fs.file.exists and not store_fs.store:
-                yield store_fs
-
-    def _get_changes(self, store_fs):
-        fs_file = store_fs.file
-        fs_changed = (
-            fs_file.latest_hash
-            != store_fs.last_sync_hash)
-        pootle_changed = (
-            store_fs.store.get_max_unit_revision()
-            != store_fs.last_sync_revision)
-        return pootle_changed, fs_changed
-
-    def get_fs_ahead(self):
-        for store_fs in self.fs.synced_translations:
-            pootle_changed, fs_changed = self._get_changes(store_fs)
-            if fs_changed and not pootle_changed:
-                yield store_fs
-
-    def get_pootle_ahead(self):
-        for store_fs in self.fs.synced_translations:
-            pootle_changed, fs_changed = self._get_changes(store_fs)
-            if not fs_changed and pootle_changed:
-                yield store_fs
-
-    def get_conflict(self):
-        for store_fs in self.fs.synced_translations:
-            pootle_changed, fs_changed = self._get_changes(store_fs)
-            if fs_changed and pootle_changed:
-                yield store_fs
-
-    def __init__(self, fs):
-        self.fs = fs
-        self.__status__ = dict(
-            conflict=set(),
-            conflict_new=set(),
-            fs_added=set(),
-            fs_ahead=set(),
-            fs_new=set(),
-            fs_removed=set(),
-            pootle_ahead=set(),
-            pootle_new=set(),
-            pootle_added=set(),
-            pootle_removed=set())
-
-        for conflict_new in self.get_conflict_new():
-            self.add("conflict_new", conflict_new)
-
-        for conflict in self.get_conflict():
-            self.add("conflict", conflict)
-
-        for pootle_new in self.get_pootle_new():
-            self.add("pootle_new", pootle_new)
-
-        for pootle_added in self.get_pootle_added():
-            self.add("pootle_added", pootle_added)
-
-        for pootle_removed in self.get_pootle_removed():
-            self.add("pootle_removed", pootle_removed)
-
-        for pootle_ahead in self.get_pootle_ahead():
-            self.add("pootle_ahead", pootle_ahead)
-
-        for fs_new in self.get_fs_new():
-            self.add("fs_new", fs_new)
-
-        for fs_added in self.get_fs_added():
-            self.add("fs_added", fs_added)
-
-        for fs_removed in self.get_fs_removed():
-            self.add("fs_removed", fs_removed)
-
-        for fs_ahead in self.get_fs_ahead():
-            self.add("fs_ahead", fs_ahead)
-
-    def __getitem__(self, k):
-        return self.__status__[k]
-
-    def __contains__(self, k):
-        return k in self.__status__ and self.__status__[k]
-
-    def __str__(self):
-        if self.has_changed:
-            return (
-                "<ProjectFSStatus(%s): %s>"
-                % (self.fs.project,
-                   ', '.join(["%s: %s" % (k, len(v))
-                              for k, v in self.__status__.items()
-                              if v])))
-        return "<ProjectFSStatus(%s): Everything up-to-date>" % self.fs.project
-
-    @property
-    def has_changed(self):
-        return any(self.__status__.values())
-
-    def add(self, k, v):
-        if k in self.__status__:
-            self.__status__[k].add(v)
