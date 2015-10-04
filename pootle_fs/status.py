@@ -3,7 +3,28 @@ import os
 from .models import FS_WINS, POOTLE_WINS
 
 
+class Status(object):
+
+    def __init__(self, status, store_fs=None, store=None,
+                 fs_path=None, pootle_path=None):
+        self.store_fs = store_fs
+        self.store = store
+        self.fs_path = fs_path
+        self.pootle_path = pootle_path
+        if store_fs:
+            self.fs_path = store_fs.path
+            self.pootle_path = store_fs.pootle_path
+        elif store:
+            self.pootle_path = store.pootle_path
+
+        if not self.fs_path or not self.pootle_path:
+            raise ValueError(
+                "Status class requires fs_path and pootle_path to be set")
+
+
 class ProjectFSStatus(object):
+
+    link_status_class = Status
 
     @property
     def store_fs_paths(self):
@@ -54,7 +75,10 @@ class ProjectFSStatus(object):
             if pootle_path in self.store_fs_paths:
                 continue
             if pootle_path in self.store_paths:
-                yield pootle_path, path
+                yield self.link_status_class(
+                    "conflict_untracked",
+                    pootle_path=pootle_path,
+                    fs_path=path)
 
     def get_fs_untracked(self):
         for pootle_path, path in self.fs_translations:
@@ -63,7 +87,10 @@ class ProjectFSStatus(object):
                 or pootle_path in self.store_paths)
             if exists_anywhere:
                 continue
-            yield pootle_path, path
+            yield self.link_status_class(
+                "fs_untracked",
+                pootle_path=pootle_path,
+                fs_path=path)
 
     def get_pootle_untracked(self):
         for store, path in self.addable_translations:
@@ -71,34 +98,47 @@ class ProjectFSStatus(object):
                 self.fs.local_fs_path,
                 self.fs.get_fs_path(store).lstrip("/"))
             if not os.path.exists(target):
-                yield store, path
+                yield self.link_status_class(
+                    "pootle_untracked",
+                    store=store,
+                    fs_path=path)
 
     def get_pootle_added(self):
         for store_fs in self.unsynced_translations:
             if store_fs.store:
                 if not store_fs.resolve_conflict == FS_WINS:
-                    yield store_fs
+                    yield self.link_status_class(
+                        "pootle_added",
+                        store_fs=store_fs)
 
     def get_fs_added(self):
         for store_fs in self.unsynced_translations:
             if store_fs.file.exists:
                 if not store_fs.resolve_conflict == POOTLE_WINS:
-                    yield store_fs
+                    yield self.link_status_class(
+                        "fs_added",
+                        store_fs=store_fs)
 
     def get_fs_removed(self):
         for store_fs in self.synced_translations:
             if not store_fs.file.exists and store_fs.store:
-                yield store_fs
+                yield self.link_status_class(
+                    "fs_removed",
+                    store_fs=store_fs)
 
     def get_pootle_removed(self):
         for store_fs in self.synced_translations:
             if store_fs.file.exists and not store_fs.store:
-                yield store_fs
+                yield self.link_status_class(
+                    "pootle_removed",
+                    store_fs=store_fs)
 
     def get_both_removed(self):
         for store_fs in self.synced_translations:
             if not store_fs.file.exists and not store_fs.store:
-                yield store_fs
+                yield self.link_status_class(
+                    "both_removed",
+                    store_fs=store_fs)
 
     def _get_changes(self, store_fs):
         if store_fs.pk in self.__cached__['changes']:
@@ -113,20 +153,26 @@ class ProjectFSStatus(object):
             pootle_changed, fs_changed = self._get_changes(store_fs)
             if fs_changed:
                 if not pootle_changed or store_fs.resolve_conflict == FS_WINS:
-                    yield store_fs
+                    yield self.link_status_class(
+                        "fs_ahead",
+                        store_fs=store_fs)
 
     def get_pootle_ahead(self):
         for store_fs in self.synced_translations:
             pootle_changed, fs_changed = self._get_changes(store_fs)
             if pootle_changed:
                 if not fs_changed or store_fs.resolve_conflict == POOTLE_WINS:
-                    yield store_fs
+                    yield self.link_status_class(
+                        "pootle_ahead",
+                        store_fs=store_fs)
 
     def get_conflict(self):
         for store_fs in self.synced_translations:
             pootle_changed, fs_changed = self._get_changes(store_fs)
             if fs_changed and pootle_changed and not store_fs.resolve_conflict:
-                yield store_fs
+                yield self.link_status_class(
+                    "conflict",
+                    store_fs=store_fs)
 
     def __init__(self, fs):
         self.fs = fs
@@ -164,6 +210,11 @@ class ProjectFSStatus(object):
 
     def __contains__(self, k):
         return k in self.__status__ and self.__status__[k]
+
+    def __iter__(self):
+        for k in self.__status__:
+            if self.__status__[k]:
+                yield k
 
     def __str__(self):
         if self.has_changed:

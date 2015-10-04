@@ -241,7 +241,8 @@ class Plugin(object):
           ``pootle_path``
         """
         status = self.status()
-        for fs_file in (status['fs_added'] + status['fs_ahead']):
+        for fs_status in (status['fs_added'] + status['fs_ahead']):
+            fs_file = fs_status.store_fs
             if pootle_path:
                 if not fnmatch(fs_file.pootle_path, pootle_path):
                     continue
@@ -251,7 +252,8 @@ class Plugin(object):
             fs_file.file.pull()
 
         if prune:
-            for fs_file in (status['fs_removed']):
+            for fs_status in (status['fs_removed']):
+                fs_file = fs_status.store_fs
                 if pootle_path:
                     if not fnmatch(fs_file.pootle_path, pootle_path):
                         continue
@@ -280,7 +282,8 @@ class Plugin(object):
           ``pootle_path``
         """
         status = self.status()
-        for fs_file in (status['pootle_added'] + status['pootle_ahead']):
+        for fs_status in (status['pootle_added'] + status['pootle_ahead']):
+            fs_file = fs_status.store_fs
             if pootle_path:
                 if not fnmatch(fs_file.pootle_path, pootle_path):
                     continue

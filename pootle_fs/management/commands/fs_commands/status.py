@@ -22,15 +22,19 @@ class StatusCommand(SubCommand):
             fs = None
             return
         status = fs.status()
-        synced = (
-            not status['CONFLICT']
-            and not status['POOTLE_AHEAD']
-            and not status['POOTLE_ADDED']
-            and not status['FS_ADDED']
-            and not status['FS_AHEAD'])
-        if synced:
+        if not status.has_changed:
             self.stdout.write("Everything up-to-date")
             return
+        
+        for k in status:
+            self.stdout.write(k)
+            self.stdout.write("-" * len(k))
+            for res in status[k]:
+                self.stdout.write("  %s" % res.pootle_path)
+                self.stdout.write("  -->  %s" % res.fs_path)
+        return
+
+
         if status["CONFLICT"]:
             self.stdout.write("Both changed:")
             for repo_file in status["CONFLICT"]:

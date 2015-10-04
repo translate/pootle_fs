@@ -13,6 +13,7 @@ import pytest
 from pootle_fs.finder import TranslationFileFinder
 
 
+# Parametrized: ROOT_PATHS
 @pytest.mark.django
 def test_finder_file_root(finder_root_paths):
     dir_path = "/some/path"
@@ -26,6 +27,7 @@ def test_finder_file_root(finder_root_paths):
             or dir_path))
 
 
+# Parametrized: BAD_FINDER_PATHS
 @pytest.mark.django
 def test_finder_bad_paths(bad_finder_paths):
     dir_path = "/some/path"
@@ -33,6 +35,7 @@ def test_finder_bad_paths(bad_finder_paths):
         TranslationFileFinder(os.path.join(dir_path, bad_finder_paths))
 
 
+# Parametrized: FINDER_REGEXES
 @pytest.mark.django
 def test_finder_regex(finder_regexes):
     dir_path = "/some/path"
@@ -44,6 +47,7 @@ def test_finder_regex(finder_regexes):
     assert finder.regex.pattern == "%s$" % path
 
 
+# Parametrized: MATCHES
 @pytest.mark.django
 def test_finder_match(finder_matches):
     dir_path = "/some/path"
@@ -64,6 +68,7 @@ def test_finder_match(finder_matches):
                 assert k not in named
 
 
+# Parametrized: FILES
 @pytest.mark.django
 def test_finder_find(fs_finder):
     finder, expected = fs_finder

@@ -312,10 +312,11 @@ def pytest_generate_tests(metafunc):
 def _test_status(plugin, expected):
     status = plugin.status()
     assert status.has_changed is (expected and True or False)
-
     for k in STATUS_TYPES:
         if k in expected:
-            assert status[k] == expected[k]
+            assert expected[k] == [
+                (s.pootle_path, s.fs_path)
+                for s in status[k]]
             assert k in status
         else:
             assert status[k] == []
@@ -378,6 +379,9 @@ def _register_plugin(name="example", plugin=None, clear=True, src=EXAMPLE_FS):
         file_class = ExampleFSFile
         _pulled = False
 
+        def get_latest_hash(self):
+            return md5(str(datetime.now())).hexdigest()
+
         def pull(self):
             dir_path = self.local_fs_path
             if not self._pulled:
@@ -387,11 +391,12 @@ def _register_plugin(name="example", plugin=None, clear=True, src=EXAMPLE_FS):
                     os.path.abspath(
                         os.path.join(
                             __file__,
-                            src)),
+                            self.src)),
                     os.path.abspath(dir_path))
             self._pulled = True
 
     ExamplePlugin.name = name
+    ExamplePlugin.src = os.path.abspath(src)
     plugins.register(plugin or ExamplePlugin)
     return ExamplePlugin
 

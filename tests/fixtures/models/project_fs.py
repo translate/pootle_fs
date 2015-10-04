@@ -15,6 +15,7 @@ from ..pootle_fs_fixtures import _register_plugin
 @pytest.fixture
 def tutorial_fs(tutorial):
     from pootle_fs.models import ProjectFS
-    _register_plugin()
     return ProjectFS.objects.create(
-        project=tutorial, fs_type="example")
+        project=tutorial,
+        fs_type="example",
+        url=_register_plugin().src)

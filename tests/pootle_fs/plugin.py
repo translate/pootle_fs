@@ -78,6 +78,7 @@ def test_plugin_push_translations(fs_plugin_pulled, expected_fs_stores):
     assert status.has_changed is False
 
 
+# Parametrized: CONFLICT
 @pytest.mark.django
 def test_plugin_conflict(fs_plugin_conflicted_param):
     name, plugin, callback, outcome = fs_plugin_conflicted_param
@@ -87,20 +88,15 @@ def test_plugin_conflict(fs_plugin_conflicted_param):
     conflict = plugin.status()[conflict_type]
     assert conflict
     callback(plugin)
-    if outcome:
-        for k, v in outcome.items():
-            outcome[k] = [
-                StoreFS.objects.get(
-                    pootle_path=pp, path=p)
-                for pp, p in v]
-    else:
-        outcome = {conflict_type: conflict}
+    if not outcome:
+        outcome = {
+            conflict_type: [(x.pootle_path, x.fs_path) for x in conflict]}
     _test_status(plugin, outcome)
 
 
 ########
 # TODO:
-
+# 
 
 @pytest.mark.django
 def test_plugin_find_translations(fs_plugin_pulled, expected_fs_stores):

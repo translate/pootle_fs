@@ -19,7 +19,7 @@ from ..fixtures.pootle_fs_fixtures import (
 
 
 @pytest.mark.django
-def test_status(fs_plugin, english, zulu, expected_fs_stores):
+def test_status_instance(fs_plugin, english, zulu, expected_fs_stores):
     assert fs_plugin.is_cloned is False
     status = fs_plugin.status()
 
@@ -34,48 +34,33 @@ def test_status(fs_plugin, english, zulu, expected_fs_stores):
             continue
         assert status[k] == []
         assert k not in status
-    assert sorted(status['fs_untracked']) == sorted(expected_fs_stores)
+    assert (
+        sorted(expected_fs_stores) == sorted(
+            [(s.pootle_path, s.fs_path)
+             for s in status['fs_untracked']]))
 
     # when we fetch the translations their status is set to fs_added
     fs_plugin.fetch_translations()
     status = fs_plugin.status()
     assert "fs_added" in status
     assert len(status["fs_added"]) == len(expected_fs_stores)
-    assert all([isinstance(x, StoreFS) for x in status['fs_added']])
+    assert all([isinstance(x.store_fs, StoreFS) for x in status['fs_added']])
 
     # pulling the translations makes us up-to-date
     fs_plugin.pull_translations()
     status = fs_plugin.status()
     assert status.has_changed is False
 
-
-@pytest.mark.django
-def test_status_check_status(fs_plugin_fs_untracked, system):
-    plugin = fs_plugin_fs_untracked
-    plugin.fetch_translations()
-    plugin.pull_translations()
-    status = plugin.status()
+    # We can reload the status object with status.check_status()
+    _edit_file(fs_plugin, "gnu_style/po/en.po")
     assert status.has_changed is False
-    _edit_file(plugin, "po/en.po")
     status.check_status()
     assert status.has_changed is True
 
 
+# Parametrized: PLUGIN_STATUS
 @pytest.mark.django
-def test_statuses(fs_status):
+def test_status(fs_status):
     plugin, cb, outcome = fs_status
     cb(plugin)
-    if outcome:
-        for k, v in outcome.items():
-            if k in ["fs_untracked", "conflict_untracked"]:
-                continue
-            if k == "pootle_untracked":
-                outcome[k] = [
-                    (Store.objects.get(pootle_path=pp), p)
-                    for pp, p in v]
-            else:
-                outcome[k] = [
-                    StoreFS.objects.get(
-                        pootle_path=pp, path=p)
-                    for pp, p in v]
     _test_status(plugin, outcome)
