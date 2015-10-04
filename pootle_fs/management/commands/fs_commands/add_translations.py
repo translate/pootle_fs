@@ -12,8 +12,8 @@ from optparse import make_option
 from pootle_fs.management.commands import TranslationsSubCommand
 
 
-class FetchTranslationsCommand(TranslationsSubCommand):
-    help = "Fetch translations into Pootle from FS."
+class AddTranslationsCommand(TranslationsSubCommand):
+    help = "Add translations into Pootle from FS."
 
     shared_option_list = (
         make_option(
@@ -25,6 +25,6 @@ class FetchTranslationsCommand(TranslationsSubCommand):
 
     def handle(self, project_code, *args, **options):
         fs = self.get_fs(project_code)
-        fs.fetch_translations(
+        fs.add_translations(
             force=options["force"],
             fs_path=options['fs_path'], pootle_path=options['pootle_path'])

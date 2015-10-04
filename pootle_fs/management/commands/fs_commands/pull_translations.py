@@ -7,11 +7,24 @@
 # or later license. See the LICENSE file for a copy of the license and the
 # AUTHORS file for copyright and authorship information.
 
-from pootle_fs.management.commands import SubCommand
+from optparse import make_option
+
+from pootle_fs.management.commands import TranslationsSubCommand
 
 
-class PullTranslationsCommand(SubCommand):
+class PullTranslationsCommand(TranslationsSubCommand):
     help = "Pull translations into Pootle from FS."
 
-    def handle(self, project, *args, **options):
-        self.get_fs(project).pull_translation_files()
+    shared_option_list = (
+        make_option(
+            '--prune', action='store_true', dest='prune',
+            help=(
+                'Remove matching Stores that are not present on the '
+                'filesystem')), )
+    option_list = TranslationsSubCommand.option_list + shared_option_list
+
+    def handle(self, project_code, *args, **options):
+        fs = self.get_fs(project_code)
+        fs.pull_translations(
+            prune=options["prune"],
+            fs_path=options['fs_path'], pootle_path=options['pootle_path'])

@@ -13,9 +13,9 @@ from pootle_fs.management.commands import SubCommand
 class ProjectInfoCommand(SubCommand):
     help = "List FS translations files managed by Pootle."
 
-    def handle(self, project, *args, **options):
-        fs = self.get_fs(project)
-        self.stdout.write("Project: %s" % project.code)
+    def handle(self, project_code, *args, **options):
+        fs = self.get_fs(project_code)
+        self.stdout.write("Self.Project: %s" % self.project.code)
         self.stdout.write("type: %s" % fs.fs_type)
         self.stdout.write("URL: %s" % fs.url)
         self.stdout.write("enabled: %s" % fs.enabled)

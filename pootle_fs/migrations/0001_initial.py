@@ -2,13 +2,14 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
+import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('pootle_project', '0002_auto_20150923_1715'),
-        ('pootle_store', '0002_make_suggestion_user_not_null'),
+        ('pootle_project', '0001_initial'),
+        ('pootle_store', '0001_initial'),
     ]
 
     operations = [
@@ -37,8 +38,9 @@ class Migration(migrations.Migration):
                 ('last_sync_revision', models.IntegerField(null=True, blank=True)),
                 ('last_sync_mtime', models.DateTimeField(null=True, blank=True)),
                 ('last_sync_hash', models.CharField(max_length=32, null=True, blank=True)),
+                ('resolve_conflict', models.IntegerField(default=0, null=True, blank=True, choices=[(0, b''), (1, b'pootle'), (2, b'fs')])),
                 ('project', models.ForeignKey(related_name='store_fs', to='pootle_project.Project')),
-                ('store', models.ForeignKey(related_name='fs', blank=True, to='pootle_store.Store', null=True)),
+                ('store', models.ForeignKey(related_name='fs', on_delete=django.db.models.deletion.SET_NULL, blank=True, to='pootle_store.Store', null=True)),
             ],
             options={
             },

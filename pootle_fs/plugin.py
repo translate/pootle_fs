@@ -22,6 +22,7 @@ class Plugin(object):
     name = None
     file_class = FSFile
     status_class = ProjectFSStatus
+    finder_class = TranslationFileFinder
 
     def __init__(self, fs):
         from .models import ProjectFS
@@ -33,7 +34,7 @@ class Plugin(object):
     @property
     def addable_translations(self):
         for store in self.stores.filter(fs__isnull=True):
-            fs_path = self.get_fs_path(store)
+            fs_path = self.get_fs_path(store.pootle_path)
             if fs_path:
                 yield store, fs_path
 
@@ -81,6 +82,12 @@ class Plugin(object):
             if fs_file.fs_changed and fs_file.pootle_changed:
                 yield translation
 
+    def get_finder(self, translation_path):
+        return self.finder_class(
+            os.path.join(
+                self.local_fs_path,
+                translation_path))
+
     def add_translations(self, force=False, pootle_path=None, fs_path=None):
         """
         Add translations from Pootle into the FS
@@ -95,6 +102,7 @@ class Plugin(object):
           ``pootle_path``
         """
         from .models import StoreFS
+        self.pull()
         for store, path in self.addable_translations:
             if pootle_path is not None:
                 if not fnmatch(store.pootle_path, pootle_path):
@@ -137,19 +145,19 @@ class Plugin(object):
           ``pootle_path``
         """
         from .models import StoreFS
-        found_translations = self.find_translations(
-            fs_path=fs_path, pootle_path=pootle_path)
-        for _pootle_path, path in found_translations:
-            fs_store, created = StoreFS.objects.get_or_create(
+        self.pull()
+        status = self.status()
+        to_create = status["fs_untracked"]
+        if force:
+            to_create += status["conflict_untracked"]
+
+        for fs_status in to_create:
+            fs_store = StoreFS.objects.create(
                 project=self.project,
-                pootle_path=_pootle_path,
-                path=path)
-            if not force and (created and fs_store.store):
-                # conflict
-                fs_store.delete()
-            elif created:
-                fs_store.resolve_conflict = FS_WINS
-                fs_store.save()
+                pootle_path=fs_status.pootle_path,
+                path=fs_status.fs_path)
+            fs_store.resolve_conflict = FS_WINS
+            fs_store.save()
             fs_store.file.fetch()
         if force:
             for translation in self.conflicting_translations:
@@ -180,10 +188,8 @@ class Plugin(object):
             else:
                 section_subdirs = section.split("/")
 
-            finder = TranslationFileFinder(
-                os.path.join(
-                    self.local_fs_path,
-                    config.get(section, "translation_path")))
+            finder = self.get_finder(
+                config.get(section, "translation_path"))
             for file_path, matched in finder.find():
                 path = file_path.replace(self.local_fs_path, "")
                 if fs_path is not None:
@@ -212,24 +218,34 @@ class Plugin(object):
                         continue
                 yield _pootle_path, path
 
-    def get_fs_path(self, store):
+    def get_fs_path(self, pootle_path):
         """
         Reverse match an FS filepath from a ``Store`` using the project config.
 
         :param store: A ``Store`` object to get the FS filepath for
         :returns: An filepath relative to the FS root.
         """
-        parts = store.pootle_path.strip("/").split("/")
+        parts = pootle_path.strip("/").split("/")
         lang_code = parts[0]
         subdirs = parts[2:-1]
         filename = parts[-1]
         fs_path = None
+        config = self.read_config()
         if subdirs:
-            fs_path = self._match_config_path(
-                subdirs[0], lang_code, subdirs[1:], filename)
+            if config.has_section(subdirs[0]):
+                finder = self.get_finder(
+                    config.get(subdirs[0], "translation_path"))
+                fs_path = finder.reverse_match(
+                    lang_code, filename, '/'.join(subdirs[1:]))
+                if fs_path:
+                    fs_path = fs_path.replace(self.local_fs_path, "")
         if not fs_path:
-            fs_path = self._match_config_path(
-                "default", lang_code, subdirs, filename)
+            finder = self.get_finder(
+                config.get("default", "translation_path"))
+            fs_path = finder.reverse_match(
+                lang_code, filename, '/'.join(subdirs))
+            if fs_path:
+                fs_path = fs_path.replace(self.local_fs_path, "")
         if fs_path:
             return "/%s" % fs_path.lstrip("/")
 
@@ -252,15 +268,20 @@ class Plugin(object):
             fs_file.file.pull()
 
         if prune:
-            for fs_status in (status['fs_removed']):
-                fs_file = fs_status.store_fs
+            prunable = status['fs_removed'] + status["pootle_untracked"]
+            for fs_status in prunable:
                 if pootle_path:
-                    if not fnmatch(fs_file.pootle_path, pootle_path):
+                    if not fnmatch(fs_status.pootle_path, pootle_path):
                         continue
                 if fs_path:
-                    if not fnmatch(fs_file.path, fs_path):
+                    # this doesnt work! - fs_status.fs_path is abs
+                    if not fnmatch(fs_status.fs_path, fs_path):
                         continue
-                fs_file.file.delete()
+                if fs_status.store_fs:
+                    fs_status.store_fs.file.delete()
+                else:
+                    Store.objects.get(
+                        pootle_path=fs_status.pootle_path).delete()
 
     def pull(self):
         """
@@ -292,18 +313,23 @@ class Plugin(object):
                     continue
             fs_file.file.push()
         if prune:
-            for fs_file in (status['pootle_removed']):
+            prunable = status['pootle_removed'] + status["fs_untracked"]
+            for fs_status in prunable:
                 if pootle_path:
-                    if not fnmatch(fs_file.pootle_path, pootle_path):
+                    if not fnmatch(fs_status.pootle_path, pootle_path):
                         continue
                 if fs_path:
-                    if not fnmatch(fs_file.path, fs_path):
+                    if not fnmatch(fs_status.fs_path, fs_path):
                         continue
-                fs_file.file.delete()
+                if fs_status.store_fs:
+                    fs_status.store_fs.file.delete()
+                else:
+                    os.unlink(
+                        os.path.join(
+                            self.local_fs_path, fs_status.fs_path.strip("/")))
         self.push()
 
     def read(self, path):
-        self.pull()
         target = os.path.join(self.local_fs_path, path)
         with open(target) as f:
             content = f.read()
@@ -319,14 +345,15 @@ class Plugin(object):
         config.readfp(io.BytesIO(self.read(self.fs.pootle_config)))
         return config
 
-    def status(self):
+    def status(self, fs_path=None, pootle_path=None):
         """
         Get a status object for showing current status of FS/Pootle
 
         :return status: Where ``status`` is an instance of self.status_class
         """
         self.pull()
-        return self.status_class(self)
+        return self.status_class(
+            self, fs_path=fs_path, pootle_path=pootle_path)
 
     def _match_config_path(self, section, lang_code, subdirs, filename):
         config = self.read_config()

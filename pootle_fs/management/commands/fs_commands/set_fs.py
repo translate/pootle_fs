@@ -17,7 +17,7 @@ from pootle_fs.models import ProjectFS
 class SetFSCommand(SubCommand):
     help = "Status of fs repositories."
 
-    def handle(self, project, *args, **options):
+    def handle(self, project_code, *args, **options):
         if not args or not len(args) == 2:
             raise CommandError("You must a FS type and FS url")
 
@@ -26,11 +26,10 @@ class SetFSCommand(SubCommand):
         except KeyError:
             raise CommandError("Unrecognised FS type: %s" % args[0])
 
+        self.get_project(project_code)
         try:
-            fs = project.fs.get()
+            fs = self.project.fs.get()
         except ProjectFS.DoesNotExist:
-            fs = project.fs.create()
-
-        fs.fs_type = args[0]
+            fs = self.project.fs.create(fs_type=args[0])
         fs.url = args[1]
         fs.save()

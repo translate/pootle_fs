@@ -66,6 +66,11 @@ def test_finder_match(finder_matches):
                 assert named[k].strip("/") == expected[k]
             else:
                 assert k not in named
+        reverse = finder.reverse_match(
+            named['lang'],
+            named.get('filename', os.path.basename(path)),
+            named.get('directory_path'))
+        assert os.path.join(dir_path, path) == reverse
 
 
 # Parametrized: FILES

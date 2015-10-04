@@ -12,19 +12,19 @@ from optparse import make_option
 from pootle_fs.management.commands import TranslationsSubCommand
 
 
-class FetchTranslationsCommand(TranslationsSubCommand):
-    help = "Fetch translations into Pootle from FS."
+class PushTranslationsCommand(TranslationsSubCommand):
+    help = "Push translations into Pootle from FS."
 
     shared_option_list = (
         make_option(
-            '--force', action='store_true', dest='force',
+            '--prune', action='store_true', dest='prune',
             help=(
-                'Fetch translations that are conflicting with Pootle '
-                'stores')), )
+                "Remove matching files that are not present as Stores in "
+                "Pootle")), )
     option_list = TranslationsSubCommand.option_list + shared_option_list
 
     def handle(self, project_code, *args, **options):
         fs = self.get_fs(project_code)
-        fs.fetch_translations(
-            force=options["force"],
+        fs.push_translations(
+            prune=options["prune"],
             fs_path=options['fs_path'], pootle_path=options['pootle_path'])

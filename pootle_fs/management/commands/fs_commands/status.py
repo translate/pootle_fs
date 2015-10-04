@@ -7,63 +7,139 @@
 # or later license. See the LICENSE file for a copy of the license and the
 # AUTHORS file for copyright and authorship information.
 
-from pootle_fs.models import ProjectFS
+from optparse import make_option
 
-from pootle_fs.management.commands import SubCommand
+from pootle_fs.management.commands import TranslationsSubCommand
+from pootle_fs.status import FS_STATUS
 
 
-class StatusCommand(SubCommand):
+class StatusCommand(TranslationsSubCommand):
     help = "Status of fs repositories."
+    __status__ = None
 
-    def handle(self, project, *args, **options):
-        try:
-            fs = project.fs.get()
-        except ProjectFS.DoesNotExist:
-            fs = None
-            return
-        status = fs.status()
-        if not status.has_changed:
+    shared_option_list = (
+        make_option('-t', '--type', action='append', dest='status_type',
+                    help='Status type'),
+        )
+    option_list = TranslationsSubCommand.option_list + shared_option_list
+
+    @property
+    def status(self):
+        if not self.__status__:
+            self.__status__ = self.fs.status(
+                fs_path=self.fs_path, pootle_path=self.pootle_path)
+        return self.__status__
+
+    def get_status_type(self, status_type):
+        return FS_STATUS[status_type]
+
+    def get_status_title(self, status_type):
+        st_type = self.get_status_type(status_type)
+        return (
+            "%s (%s)"
+            % (st_type['title'], len(self.status[status_type])))
+
+    def get_status_description(self, status_type):
+        return self.get_status_type(status_type)['description']
+
+    def handle_status(self, status_type):
+        title = self.get_status_title(status_type)
+        self.stdout.write(title, self.style.HTTP_INFO)
+        self.stdout.write("-" * len(title))
+        self.stdout.write(self.get_status_description(status_type))
+        self.stdout.write("")
+        handler = getattr(self, "handle_%s" % status_type, None)
+        if handler:
+            handler()
+        else:
+            for status in self.status[status_type]:
+                self.stdout.write("  %s" % status.pootle_path)
+                self.stdout.write("   <-->  %s" % status.fs_path)
+        self.stdout.write("")
+
+    def handle_conflict(self):
+        for status in self.status["conflict"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path, self.style.FS_CONFLICT)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("%s" % status.fs_path, self.style.FS_CONFLICT)
+
+    def handle_conflict_untracked(self):
+        for status in self.status["conflict_untracked"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path, self.style.FS_CONFLICT)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("%s" % status.fs_path, self.style.FS_CONFLICT)
+
+    def handle_fs_untracked(self):
+        for status in self.status["fs_untracked"]:
+            self.stdout.write(
+                "  (%s)" % status.pootle_path,
+                self.style.FS_MISSING)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("%s" % status.fs_path, self.style.FS_UNTRACKED)
+
+    def handle_fs_added(self):
+        for status in self.status["fs_added"]:
+            self.stdout.write(
+                "  (%s)" % status.pootle_path,
+                self.style.FS_MISSING)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("%s" % status.fs_path, self.style.FS_ADDED)
+
+    def handle_fs_ahead(self):
+        for status in self.status["fs_added"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("%s" % status.fs_path, self.style.FS_UPDATED)
+
+    def handle_fs_removed(self):
+        for status in self.status["fs_removed"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("(%s)" % status.fs_path, self.style.FS_REMOVED)
+
+    def handle_pootle_untracked(self):
+        for status in self.status["pootle_untracked"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path,
+                self.style.FS_UNTRACKED)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("(%s)" % status.fs_path, self.style.FS_MISSING)
+
+    def handle_pootle_added(self):
+        for status in self.status["pootle_added"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path,
+                self.style.FS_ADDED)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("(%s)" % status.fs_path, self.style.FS_MISSING)
+
+    def handle_pootle_removed(self):
+        for status in self.status["pootle_removed"]:
+            self.stdout.write(
+                "  (%s)" % status.pootle_path,
+                self.style.FS_REMOVED)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("%s" % status.fs_path)
+
+    def handle_pootle_ahead(self):
+        for status in self.status["pootle_ahead"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path,
+                self.style.FS_UPDATED)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write("(%s)" % status.fs_path)
+
+    def handle(self, project_code, *args, **options):
+        self.fs = self.get_fs(project_code)
+        self.pootle_path = options["pootle_path"]
+        self.fs_path = options["fs_path"]
+        if not self.status.has_changed:
             self.stdout.write("Everything up-to-date")
             return
-        
-        for k in status:
-            self.stdout.write(k)
-            self.stdout.write("-" * len(k))
-            for res in status[k]:
-                self.stdout.write("  %s" % res.pootle_path)
-                self.stdout.write("  -->  %s" % res.fs_path)
-        return
 
-
-        if status["CONFLICT"]:
-            self.stdout.write("Both changed:")
-            for repo_file in status["CONFLICT"]:
-                self.stdout.write(repo_file)
-        if status["POOTLE_ADDED"]:
-            for store in status["POOTLE_ADDED"]:
-                self.stdout.write(
-                    " %-50s %-50s %-20s\n"
-                    % ("", store.pootle_path,
-                       "Pootle added: %s" % store.get_max_unit_revision()))
-        if status["POOTLE_AHEAD"]:
-            self.stdout.write("Pootle changed:")
-            for repo_file in status["POOTLE_AHEAD"]:
-                self.stdout.write(repo_file)
-        if status["FS_ADDED"]:
-            for store_fs in status["FS_ADDED"]:
-                self.stdout.write(
-                    " %-50s %-50s %-10s\n"
-                    % (store_fs.path,
-                       store_fs.store.pootle_path,
-                       "FS added: %s"
-                       % store_fs.file.latest_hash[:8]))
-        if status["FS_AHEAD"]:
-            for store_fs in status["FS_AHEAD"]:
-                self.stdout.write(
-                    " %-50s %-50s %-20s\n"
-                    % (store_fs.path,
-                       store_fs.store.pootle_path,
-                       "FS updated: %s...%s"
-                       % (store_fs.last_sync_hash[:8],
-                          store_fs.file.latest_hash[:8])))
-            self.stdout.write("\n")
+        for k in self.status:
+            self.handle_status(k)

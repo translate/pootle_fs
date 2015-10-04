@@ -83,29 +83,40 @@ class ProjectFS(models.Model):
     ###########################
     # FS Plugin implementation
 
+    def add_translations(self, force=False, fs_path=None, pootle_path=None):
+        return self.plugin.add_translations(
+            force=force, fs_path=fs_path, pootle_path=pootle_path)
+
+    def fetch_translations(self, force=False, fs_path=None, pootle_path=None):
+        return self.plugin.fetch_translations(
+            force=force, fs_path=fs_path, pootle_path=pootle_path)
+
     def fs_file(self, fs_store):
         return self.plugin.file_class(fs_store)
-
-    def pull(self):
-        return self.plugin.pull()
 
     def get_latest_hash(self):
         return self.plugin.get_latest_hash()
 
-    def fetch_translations(self):
-        return self.plugin.fetch_translations()
-
     def list_translations(self):
         return self.plugin.translations
 
-    def pull_translations(self):
-        return self.plugin.pull_translations()
+    def pull(self):
+        return self.plugin.pull()
+
+    def pull_translations(self, prune=False, fs_path=None, pootle_path=None):
+        return self.plugin.pull_translations(
+            prune=prune, fs_path=fs_path, pootle_path=pootle_path)
+
+    def push_translations(self, prune=False, fs_path=None, pootle_path=None):
+        return self.plugin.push_translations(
+            prune=prune, fs_path=fs_path, pootle_path=pootle_path)
 
     def read_config(self):
         return self.plugin.read_config()
 
-    def status(self):
-        return self.plugin.status()
+    def status(self, fs_path=None, pootle_path=None):
+        return self.plugin.status(
+            fs_path=fs_path, pootle_path=pootle_path)
 
     # FS Plugin implementation
     ###########################

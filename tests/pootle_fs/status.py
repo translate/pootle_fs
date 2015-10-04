@@ -9,8 +9,6 @@
 
 import pytest
 
-from pootle_store.models import Store
-
 from pootle_fs.models import StoreFS
 from pootle_fs.status import ProjectFSStatus
 

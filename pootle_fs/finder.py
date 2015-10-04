@@ -27,6 +27,7 @@ class TranslationFileFinder(object):
         return file_root.rstrip("/")
 
     def find(self):
+        # print("Walking the FS: %s" % self.file_root)
         for root, dirs, files in os.walk(self.file_root):
             for filename in files:
                 file_path = os.path.join(root, filename)
@@ -44,6 +45,29 @@ class TranslationFileFinder(object):
 
     def match(self, file_path):
         return self.regex.match(file_path)
+
+    def reverse_match(self, lang, filename, directory_path=None):
+        path = self.translation_path
+        matching = not (
+            directory_path and "<directory_path>" not in path)
+        if not matching:
+            return
+        path = (path.replace("<lang>",
+                             lang)
+                    .replace("<filename>",
+                             os.path.splitext(filename)[0]))
+        if "<directory_path>" in path:
+            if directory_path.strip("/"):
+                path = path.replace(
+                    "<directory_path>", "/%s/" % directory_path.strip("/"))
+            else:
+                path = path.replace("<directory_path>", "")
+        local_path = path.replace(self.file_root, "")
+        if "//" in local_path:
+            path = os.path.join(
+                self.file_root,
+                local_path.replace("//", "/").lstrip("/"))
+        return path
 
     def _parse_path(self):
         path = self.translation_path

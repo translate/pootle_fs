@@ -7,7 +7,11 @@
 # or later license. See the LICENSE file for a copy of the license and the
 # AUTHORS file for copyright and authorship information.
 
+from optparse import make_option
+
 from django.core.management.base import BaseCommand, CommandError
+
+from pootle_project.models import Project
 
 from pootle_fs.models import ProjectFS
 
@@ -16,10 +20,26 @@ class SubCommand(BaseCommand):
 
     requires_system_checks = False
 
-    def get_fs(self, project):
+    def get_project(self, project_code):
+        self.project = Project.objects.get(code=project_code)
+        return self.project
+
+    def get_fs(self, project_code):
+        self.get_project(project_code)
         try:
-            return project.fs.get()
+            return self.project.fs.get()
         except ProjectFS.DoesNotExist:
             raise CommandError(
                 "Project (%s) is not managed in FS"
-                % project.code)
+                % self.project.code)
+
+
+class TranslationsSubCommand(SubCommand):
+    shared_option_list = (
+        make_option(
+            '-p', '--fs_path', action='store', dest='fs_path',
+            help='Filter translations by filesystem path'),
+        make_option(
+            '-P', '--pootle_path', action='store', dest='pootle_path',
+            help='Filter translations by Pootle path'))
+    option_list = SubCommand.option_list + shared_option_list

@@ -12,8 +12,6 @@ from ConfigParser import ConfigParser
 
 from pootle_store.models import Store
 
-from pootle_fs.models import StoreFS
-
 from ..fixtures.pootle_fs_fixtures import (
     _test_status, _edit_file, _setup_store)
 
@@ -46,6 +44,7 @@ def test_plugin_pull(fs_plugin):
 
 @pytest.mark.django
 def test_plugin_read_config(fs_plugin):
+    fs_plugin.pull()
     config = fs_plugin.read_config()
     assert isinstance(config, ConfigParser)
     assert config.sections() == ['default', 'subdir1', 'subdir2', 'subdir3']
@@ -96,7 +95,7 @@ def test_plugin_conflict(fs_plugin_conflicted_param):
 
 ########
 # TODO:
-# 
+#
 
 @pytest.mark.django
 def test_plugin_find_translations(fs_plugin_pulled, expected_fs_stores):
