@@ -24,7 +24,7 @@ class PushTranslationsCommand(TranslationsSubCommand):
     option_list = TranslationsSubCommand.option_list + shared_option_list
 
     def handle(self, project_code, *args, **options):
-        fs = self.get_fs(project_code)
-        fs.push_translations(
+        self.fs = self.get_fs(project_code)
+        self.fs.push_translations(
             prune=options["prune"],
             fs_path=options['fs_path'], pootle_path=options['pootle_path'])

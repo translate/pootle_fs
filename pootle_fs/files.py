@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -9,7 +10,10 @@ from pootle_language.models import Language
 from pootle_store.models import Store
 from pootle_translationproject.models import TranslationProject
 
-from .models import FS_WINS, POOTLE_WINS
+from .models import FS_WINS, POOTLE_WINS, StoreFS
+
+
+logger = logging.getLogger(__name__)
 
 
 class FSFile(object):
@@ -18,7 +22,6 @@ class FSFile(object):
         """
         :param fs_store: ``FSStore`` object
         """
-        from .models import StoreFS
         if not isinstance(fs_store, StoreFS):
             raise TypeError(
                 "pootle_fs.FSFile expects a StoreFS")
@@ -124,6 +127,9 @@ class FSFile(object):
         parent ```Directories```
         """
         if not self.translation_project:
+            logger.debug(
+                "Created translation project: %s/%s"
+                % (self.project.code, self.language.code))
             TranslationProject.objects.create(
                 project=self.project,
                 language=self.language)
@@ -133,15 +139,21 @@ class FSFile(object):
                 for subdir in self.directory_path.split("/"):
                     directory, created = directory.child_dirs.get_or_create(
                         name=subdir)
+                    if created:
+                        logger.debug(
+                            "Created directory: %s" % directory.path)
         if not self.store:
             store, created = Store.objects.get_or_create(
                 parent=self.directory, name=self.filename,
                 translation_project=self.translation_project)
+            if created:
+                logger.debug("Created Store: %s" % store.pootle_path)
         if not self.fs_store.store == self.store:
             self.fs_store.store = self.store
             self.fs_store.save()
 
     def add(self):
+        logger.debug("Adding file: %s" % self.path)
         self.fs_store.resolve_conflict = POOTLE_WINS
         self.fs_store.save()
 
@@ -165,6 +177,7 @@ class FSFile(object):
         """
         Called when FS fils is fetched
         """
+        logger.debug("Fetching file: %s" % self.path)
         if self.store and not self.fs_store.store:
             self.fs_store.store = self.store
         self.fs_store.resolve_conflict = FS_WINS
@@ -179,6 +192,7 @@ class FSFile(object):
         self.fs_store.last_sync_hash = latest_hash
         self.fs_store.last_sync_revision = revision
         self.fs_store.save()
+        logger.debug("File synced: %s" % self.path)
 
     def sync_to_pootle(self):
         """
@@ -189,6 +203,7 @@ class FSFile(object):
         #        f,
         #        pootle_path=self.pootle_path,
         #        rev=self.store.get_max_unit_revision())
+        logger.debug("Pulled file: %s" % self.path)
         self.on_sync(
             self.latest_hash,
             self.store.get_max_unit_revision())
@@ -199,6 +214,7 @@ class FSFile(object):
         """
         with open(self.file_path, "w") as f:
             f.write(str(datetime.now()))
+        logger.debug("Pushed file: %s" % self.path)
         self.on_sync(
             self.latest_hash,
             self.store.get_max_unit_revision())
@@ -207,6 +223,7 @@ class FSFile(object):
         """
         Pull FS file into Pootle
         """
+        logger.debug("Pulling file: %s" % self.path)
         if not self.store:
             self.create_store()
         if not self.fs_store.store == self.store:
@@ -218,13 +235,14 @@ class FSFile(object):
         """
         Push Pootle ``Store`` into FS
         """
-        # TODO: check that store exists!
         current_revision = self.store.get_max_unit_revision()
         last_revision = self.fs_store.last_sync_revision
         if last_revision and (last_revision == current_revision):
             return
+        logger.debug("Pushing file: %s" % self.path)
         directory = os.path.dirname(self.fs_store.file.file_path)
         if not os.path.exists(directory):
+            logger.debug("Creating directory: %s" % directory)
             os.makedirs(directory)
         self.sync_from_pootle()
 

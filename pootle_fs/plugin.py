@@ -5,6 +5,7 @@ import os
 from ConfigParser import ConfigParser
 
 from django.conf import settings
+from django.utils.lru_cache import lru_cache
 
 from pootle_language.models import Language
 from pootle_store.models import Store
@@ -81,6 +82,7 @@ class Plugin(object):
             if fs_file.fs_changed and fs_file.pootle_changed:
                 yield translation
 
+    @lru_cache(maxsize=None)
     def get_finder(self, translation_path):
         return self.finder_class(
             os.path.join(
@@ -101,7 +103,6 @@ class Plugin(object):
           ``pootle_path``
         """
         from .models import StoreFS
-        self.pull()
         status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["pootle_untracked"]
         if force:
@@ -129,7 +130,6 @@ class Plugin(object):
           ``pootle_path``
         """
         from .models import StoreFS
-        self.pull()
         status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["fs_untracked"]
         if force:
@@ -193,6 +193,7 @@ class Plugin(object):
                         continue
                 yield _pootle_path, path
 
+    @lru_cache(maxsize=None)
     def get_fs_path(self, pootle_path):
         """
         Reverse match an FS filepath from a ``Store`` using the project config.
@@ -248,7 +249,7 @@ class Plugin(object):
         """
         Pull the FS from external source if required.
         """
-        pass
+        self.read_config.cache_clear()
 
     def push(self, message=None):
         """
@@ -256,14 +257,16 @@ class Plugin(object):
         """
         pass
 
-    def push_translations(self, prune=False, pootle_path=None, fs_path=None):
+    def push_translations(self, prune=False, pootle_path=None,
+                          fs_path=None, status=None):
         """
         :param prune: Remove files that do not exist in Pootle.
         :param fs_path: Path glob to filter translations matching FS path
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
-        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
+        status = status or self.status(
+            pootle_path=pootle_path, fs_path=fs_path)
         for fs_status in (status['pootle_added'] + status['pootle_ahead']):
             fs_status.store_fs.file.push()
         if prune:
@@ -280,7 +283,8 @@ class Plugin(object):
         with open(target) as f:
             content = f.read()
         return content
-
+    
+    @lru_cache(maxsize=None)
     def read_config(self):
         """
         Read and parse the configuration for this project
@@ -300,22 +304,6 @@ class Plugin(object):
         self.pull()
         return self.status_class(
             self, fs_path=fs_path, pootle_path=pootle_path)
-
-    def _match_config_path(self, section, lang_code, subdirs, filename):
-        config = self.read_config()
-        if config.has_section(section):
-            path = config.get(section, "translation_path")
-            matching = not (
-                subdirs and "<directory_path>" not in path)
-            if matching:
-                path = (path.replace("<lang>",
-                                     lang_code)
-                            .replace("<filename>",
-                                     os.path.splitext(filename)[0]))
-                if subdirs:
-                    path = path.replace(
-                        "<directory_path>", '/'.join(subdirs))
-                return path
 
 
 class Plugins(object):

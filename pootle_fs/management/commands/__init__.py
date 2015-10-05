@@ -43,3 +43,10 @@ class TranslationsSubCommand(SubCommand):
             '-P', '--pootle_path', action='store', dest='pootle_path',
             help='Filter translations by Pootle path'))
     option_list = SubCommand.option_list + shared_option_list
+    __plugin__ = None
+
+    @property
+    def plugin(self):
+        if not self.__plugin__ and hasattr(self, "fs"):
+            self.__plugin__ = self.fs.plugin
+        return self.__plugin__

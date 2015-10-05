@@ -1,9 +1,15 @@
 from collections import OrderedDict
 from fnmatch import fnmatch
+import logging
 import os
+
+from django.utils.functional import cached_property
+from django.utils.lru_cache import lru_cache
 
 from .models import FS_WINS, POOTLE_WINS
 
+
+logger = logging.getLogger(__name__)
 
 FS_STATUS = OrderedDict()
 FS_STATUS["conflict"] = {
@@ -66,66 +72,40 @@ class ProjectFSStatus(object):
 
     link_status_class = Status
 
-    @property
+    @cached_property
     def store_fs_pootle_paths(self):
-        if not self.__cached__['store_fs_pootle_paths']:
-            self.__cached__['store_fs_pootle_paths'] = (
-                self.fs.translations.values_list(
-                    "pootle_path", flat=True))
-        return self.__cached__['store_fs_pootle_paths']
+        return self.fs.translations.values_list("pootle_path", flat=True)
 
-    @property
+    @cached_property
     def store_paths(self):
-        if not self.__cached__['store_paths']:
-            self.__cached__['store_paths'] = (
-                self.fs.stores.values_list(
-                    "pootle_path", flat=True))
-        return self.__cached__['store_paths']
+        return self.fs.stores.values_list("pootle_path", flat=True)
 
-    @property
+    @cached_property
     def store_reversed_paths(self):
-        if not self.__cached__['store_paths']:
-            self.__cached__['store_paths'] = {
-                self.fs.get_fs_path(pootle_path): pootle_path
-                for pootle_path
-                in self.fs.stores.values_list("pootle_path", flat=True)}
-        return self.__cached__['store_paths']
+        return {
+            self.fs.get_fs_path(pootle_path): pootle_path
+            for pootle_path
+            in self.fs.stores.values_list("pootle_path", flat=True)}
 
-    @property
+    @cached_property
     def store_fs_paths(self):
-        if not self.__cached__['store_fs_paths']:
-            self.__cached__['store_fs_paths'] = (
-                self.fs.translations.values_list(
-                    "path", flat=True))
-        return self.__cached__['store_fs_paths']
+        return self.fs.translations.values_list("path", flat=True)
 
-    @property
+    @cached_property
     def fs_translations(self):
-        if self.__cached__['fs_translations'] is None:
-            self.__cached__['fs_translations'] = [
-                t for t in self.fs.find_translations()]
-        return self.__cached__['fs_translations']
+        return [t for t in self.fs.find_translations()]
 
-    @property
+    @cached_property
     def addable_translations(self):
-        if not self.__cached__['addable_translations']:
-            self.__cached__['addable_translations'] = (
-                self.fs.addable_translations)
-        return self.__cached__['addable_translations']
+        return self.fs.addable_translations
 
-    @property
+    @cached_property
     def unsynced_translations(self):
-        if not self.__cached__['unsynced_translations']:
-            self.__cached__['unsynced_translations'] = (
-                self.fs.unsynced_translations)
-        return self.__cached__['unsynced_translations']
+        return self.fs.unsynced_translations
 
-    @property
+    @cached_property
     def synced_translations(self):
-        if not self.__cached__['synced_translations']:
-            self.__cached__['synced_translations'] = (
-                self.fs.synced_translations)
-        return self.__cached__['synced_translations']
+        return self.fs.synced_translations
 
     def get_conflict_untracked(self):
         reversed_paths = self.store_reversed_paths
@@ -189,6 +169,7 @@ class ProjectFSStatus(object):
                         "pootle_added",
                         store_fs=store_fs)
 
+    @lru_cache(maxsize=None)
     def _filtered(self, pootle_path, fs_path):
         return (
             (self.pootle_path
@@ -233,13 +214,10 @@ class ProjectFSStatus(object):
                     "both_removed",
                     store_fs=store_fs)
 
+    @lru_cache(maxsize=None)
     def _get_changes(self, store_fs):
-        if store_fs.pk in self.__cached__['changes']:
-            return self.__cached__['changes'][store_fs.pk]
         fs_file = store_fs.file
-        self.__cached__['changes'][store_fs.pk] = (
-            fs_file.pootle_changed, fs_file.fs_changed)
-        return self.__cached__['changes'][store_fs.pk]
+        return fs_file.pootle_changed, fs_file.fs_changed
 
     def get_fs_ahead(self):
         for store_fs in self.synced_translations:
@@ -277,25 +255,24 @@ class ProjectFSStatus(object):
 
     def __init__(self, fs, fs_path=None, pootle_path=None):
         self.fs = fs
+        self.__status__ = {}
         self.check_status(fs_path=fs_path, pootle_path=pootle_path)
+
+    def _clear_cache(self):
+        for k in self.__dict__.keys():
+            if callable(getattr(self, k, None)):
+                del self.__dict__[k]
+        self._get_changes.cache_clear()
+        self._filtered.cache_clear()
+        self.__status__ = {k: [] for k in FS_STATUS.keys()}
 
     def check_status(self, fs_path=None, pootle_path=None):
         self.fs_path = fs_path
         self.pootle_path = pootle_path
-        # print("Checking status")
-        caches = [
-            "fs_translations",
-            "store_paths",
-            "store_fs_paths",
-            "store_fs_pootle_paths",
-            "addable_translations",
-            "unsynced_translations",
-            "synced_translations"]
-        self.__cached__ = {k: None for k in caches}
-        self.__cached__["changes"] = {}
-        self.__status__ = {k: [] for k in FS_STATUS.keys()}
+        self._clear_cache()
+        logger.debug("Checking status")
         for k in FS_STATUS.keys():
-            # print("Checking %s" % k)
+            logger.debug("Checking %s" % k)
             for v in getattr(self, "get_%s" % k)():
                 self.add(k, v)
         return self

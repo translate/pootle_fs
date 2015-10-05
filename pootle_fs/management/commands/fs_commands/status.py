@@ -26,7 +26,7 @@ class StatusCommand(TranslationsSubCommand):
     @property
     def status(self):
         if not self.__status__:
-            self.__status__ = self.fs.status(
+            self.__status__ = self.plugin.status(
                 fs_path=self.fs_path, pootle_path=self.pootle_path)
         return self.__status__
 

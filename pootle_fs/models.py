@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.functional import cached_property
 
 from pootle_project.models import Project
 from pootle_store.models import Store
@@ -33,11 +34,11 @@ class StoreFS(models.Model):
 
     objects = StoreFSManager()
 
-    @property
+    @cached_property
     def fs(self):
         return self.project.fs.get()
 
-    @property
+    @cached_property
     def file(self):
         return self.fs.fs_file(self)
 
@@ -71,7 +72,7 @@ class ProjectFS(models.Model):
             fs_type=self.fs_type)
         return super(ProjectFS, self).save(*args, **kwargs)
 
-    @property
+    @cached_property
     def plugin(self):
         from pootle_fs import plugins
         try:

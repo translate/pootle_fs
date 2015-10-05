@@ -1,6 +1,9 @@
 import os
 import re
 
+from django.utils.functional import cached_property
+from django.utils.lru_cache import lru_cache
+
 
 PATH_MAPPING = (
     (".", "\."),
@@ -19,7 +22,7 @@ class TranslationFileFinder(object):
         self.validate_path()
         self.regex = re.compile(self._parse_path())
 
-    @property
+    @cached_property
     def file_root(self):
         file_root = self.translation_path.split("<")[0]
         if not file_root.endswith("/"):
@@ -43,9 +46,11 @@ class TranslationFileFinder(object):
                                os.path.splitext(file_path)[1]))
                     yield file_path, matched
 
+    @lru_cache(maxsize=None)
     def match(self, file_path):
         return self.regex.match(file_path)
 
+    @lru_cache(maxsize=None)
     def reverse_match(self, lang, filename, directory_path=None):
         path = self.translation_path
         matching = not (
