@@ -146,7 +146,7 @@ class Plugin(object):
         """
         from .models import StoreFS
         self.pull()
-        status = self.status()
+        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["fs_untracked"]
         if force:
             to_create += status["conflict_untracked"]
@@ -256,27 +256,13 @@ class Plugin(object):
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
-        status = self.status()
+        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         for fs_status in (status['fs_added'] + status['fs_ahead']):
-            fs_file = fs_status.store_fs
-            if pootle_path:
-                if not fnmatch(fs_file.pootle_path, pootle_path):
-                    continue
-            if fs_path:
-                if not fnmatch(fs_file.path, fs_path):
-                    continue
-            fs_file.file.pull()
+            fs_status.store_fs.file.pull()
 
         if prune:
             prunable = status['fs_removed'] + status["pootle_untracked"]
             for fs_status in prunable:
-                if pootle_path:
-                    if not fnmatch(fs_status.pootle_path, pootle_path):
-                        continue
-                if fs_path:
-                    # this doesnt work! - fs_status.fs_path is abs
-                    if not fnmatch(fs_status.fs_path, fs_path):
-                        continue
                 if fs_status.store_fs:
                     fs_status.store_fs.file.delete()
                 else:
@@ -302,31 +288,16 @@ class Plugin(object):
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
-        status = self.status()
+        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         for fs_status in (status['pootle_added'] + status['pootle_ahead']):
-            fs_file = fs_status.store_fs
-            if pootle_path:
-                if not fnmatch(fs_file.pootle_path, pootle_path):
-                    continue
-            if fs_path:
-                if not fnmatch(fs_file.path, fs_path):
-                    continue
-            fs_file.file.push()
+            fs_status.store_fs.file.push()
         if prune:
-            prunable = status['pootle_removed'] + status["fs_untracked"]
-            for fs_status in prunable:
-                if pootle_path:
-                    if not fnmatch(fs_status.pootle_path, pootle_path):
-                        continue
-                if fs_path:
-                    if not fnmatch(fs_status.fs_path, fs_path):
-                        continue
-                if fs_status.store_fs:
-                    fs_status.store_fs.file.delete()
-                else:
-                    os.unlink(
-                        os.path.join(
-                            self.local_fs_path, fs_status.fs_path.strip("/")))
+            for fs_status in status['pootle_removed']:
+                fs_status.store_fs.file.delete()
+            for fs_status in status['fs_untracked']:
+                os.unlink(
+                    os.path.join(
+                        self.local_fs_path, fs_status.fs_path.strip("/")))
         self.push()
 
     def read(self, path):

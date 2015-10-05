@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from fnmatch import fnmatch
 import os
 
 from .models import FS_WINS, POOTLE_WINS
@@ -129,6 +130,8 @@ class ProjectFSStatus(object):
     def get_conflict_untracked(self):
         reversed_paths = self.store_reversed_paths
         for pootle_path, path in self.fs_translations:
+            if self._filtered(pootle_path, path):
+                continue
             if pootle_path in self.store_fs_pootle_paths:
                 continue
             if path in self.store_fs_paths:
@@ -149,6 +152,8 @@ class ProjectFSStatus(object):
     def get_fs_untracked(self):
         reversed_paths = self.store_reversed_paths
         for pootle_path, path in self.fs_translations:
+            if self._filtered(pootle_path, path):
+                continue
             exists_anywhere = (
                 pootle_path in self.store_fs_pootle_paths
                 or pootle_path in self.store_paths
@@ -163,6 +168,8 @@ class ProjectFSStatus(object):
 
     def get_pootle_untracked(self):
         for store, path in self.addable_translations:
+            if self._filtered(store.pootle_path, path):
+                continue
             target = os.path.join(
                 self.fs.local_fs_path,
                 self.fs.get_fs_path(store.pootle_path).lstrip("/"))
@@ -174,14 +181,27 @@ class ProjectFSStatus(object):
 
     def get_pootle_added(self):
         for store_fs in self.unsynced_translations:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
             if store_fs.store:
                 if not store_fs.resolve_conflict == FS_WINS:
                     yield self.link_status_class(
                         "pootle_added",
                         store_fs=store_fs)
 
+    def _filtered(self, pootle_path, fs_path):
+        return (
+            (self.pootle_path
+             and not fnmatch(pootle_path, self.pootle_path))
+            or
+            (self.fs_path
+             and not fnmatch(fs_path, self.fs_path)))
+
     def get_fs_added(self):
         for store_fs in self.unsynced_translations:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
+
             if store_fs.file.exists:
                 if not store_fs.resolve_conflict == POOTLE_WINS:
                     yield self.link_status_class(
@@ -190,6 +210,8 @@ class ProjectFSStatus(object):
 
     def get_fs_removed(self):
         for store_fs in self.synced_translations:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
             if not store_fs.file.exists and store_fs.store:
                 yield self.link_status_class(
                     "fs_removed",
@@ -197,6 +219,8 @@ class ProjectFSStatus(object):
 
     def get_pootle_removed(self):
         for store_fs in self.synced_translations:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
             if store_fs.file.exists and not store_fs.store:
                 yield self.link_status_class(
                     "pootle_removed",
