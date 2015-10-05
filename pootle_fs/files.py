@@ -9,6 +9,8 @@ from pootle_language.models import Language
 from pootle_store.models import Store
 from pootle_translationproject.models import TranslationProject
 
+from .models import FS_WINS, POOTLE_WINS
+
 
 class FSFile(object):
 
@@ -139,6 +141,10 @@ class FSFile(object):
             self.fs_store.store = self.store
             self.fs_store.save()
 
+    def add(self):
+        self.fs_store.resolve_conflict = POOTLE_WINS
+        self.fs_store.save()
+
     def delete(self):
         """
         Delete the file from FS and Pootle
@@ -161,7 +167,8 @@ class FSFile(object):
         """
         if self.store and not self.fs_store.store:
             self.fs_store.store = self.store
-            self.fs_store.save()
+        self.fs_store.resolve_conflict = FS_WINS
+        self.fs_store.save()
         return self.fs_store
 
     def on_sync(self, latest_hash, revision):

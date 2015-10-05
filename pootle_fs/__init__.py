@@ -3,5 +3,3 @@ from .files import FSFile
 (Plugin, FSFile)
 
 plugins = Plugins()
-
-

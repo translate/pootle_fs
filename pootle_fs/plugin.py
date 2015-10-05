@@ -11,7 +11,6 @@ from pootle_store.models import Store
 
 from .files import FSFile
 from .finder import TranslationFileFinder
-from .models import FS_WINS, POOTLE_WINS
 from .status import ProjectFSStatus
 
 
@@ -103,33 +102,18 @@ class Plugin(object):
         """
         from .models import StoreFS
         self.pull()
-        for store, path in self.addable_translations:
-            if pootle_path is not None:
-                if not fnmatch(store.pootle_path, pootle_path):
-                    continue
-            if fs_path is not None:
-                if not fnmatch(path, fs_path):
-                    continue
-            fs_store = StoreFS.objects.create(
-                project=self.project,
-                store=store,
-                path=path)
-            if fs_store.file.exists and not force:
-                fs_store.delete()
-            else:
-                # Mark this as added from FS in case of any conflict
-                fs_store.resolve_conflict = POOTLE_WINS
-                fs_store.save()
+        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
+        to_create = status["pootle_untracked"]
         if force:
-            for translation in self.conflicting_translations:
-                if fs_path is not None:
-                    if not fnmatch(translation.path, fs_path):
-                        continue
-                if pootle_path is not None:
-                    if not fnmatch(translation.pootle_path, pootle_path):
-                        continue
-                translation.resolve_conflict = POOTLE_WINS
-                translation.save()
+            to_create += status["conflict_untracked"]
+        for fs_status in to_create:
+            StoreFS.objects.create(
+                project=self.project,
+                pootle_path=fs_status.pootle_path,
+                path=fs_status.fs_path).file.add()
+        if force:
+            for fs_status in status["conflict"]:
+                fs_status.store_fs.file.add()
 
     def fetch_translations(self, force=False, pootle_path=None, fs_path=None):
         """
@@ -156,19 +140,10 @@ class Plugin(object):
                 project=self.project,
                 pootle_path=fs_status.pootle_path,
                 path=fs_status.fs_path)
-            fs_store.resolve_conflict = FS_WINS
-            fs_store.save()
             fs_store.file.fetch()
         if force:
-            for translation in self.conflicting_translations:
-                if fs_path is not None:
-                    if not fnmatch(translation.path, fs_path):
-                        continue
-                if pootle_path is not None:
-                    if not fnmatch(translation.pootle_path, pootle_path):
-                        continue
-                translation.resolve_conflict = FS_WINS
-                translation.save()
+            for fs_status in status["conflict"]:
+                fs_status.store_fs.file.fetch()
 
     def find_translations(self, fs_path=None, pootle_path=None):
         """
