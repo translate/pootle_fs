@@ -70,8 +70,14 @@ def _update_store(plugin=None, pootle_path=None):
     else:
         # Update the store revision
         store = plugin.stores.first()
-    Unit.objects.create(
-        unitid="Foo", store=store, index=0, revision=1)
+    unit = Unit.objects.create(
+        unitid="Foo",
+        source="Foo",
+        store=store,
+        index=0,
+        revision=store.get_max_unit_revision() or 1)
+    unit.target = "Bar"
+    unit.save()
 
 
 def _remove_store(plugin=None, pootle_path=None):

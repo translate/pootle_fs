@@ -100,13 +100,13 @@ def expected_fs_stores():
 
 
 @pytest.fixture
-def fs_fetch_paths(fs_plugin_pulled, plugin_fetch_paths, system):
+def fs_fetch_paths(fs_plugin_pulled, plugin_fetch_paths):
     _edit_file(fs_plugin_pulled, "non_gnu_style/locales/en/foo/bar/baz.po")
     return [fs_plugin_pulled] + list(PLUGIN_FETCH_PATHS[plugin_fetch_paths])
 
 
 @pytest.fixture
-def fs_plugin(tutorial_fs, tmpdir, settings):
+def fs_plugin(tutorial_fs, tmpdir, settings, system, english, zulu):
     plugin = _register_plugin()
     dir_path = str(tmpdir.dirpath())
     settings.POOTLE_FS_PATH = dir_path
@@ -141,7 +141,7 @@ def fs_plugin_conflicted_param(conflict_outcomes, tutorial_fs,
 
 
 @pytest.fixture
-def fs_plugin_fetched(fs_plugin, english, zulu):
+def fs_plugin_fetched(fs_plugin):
     fs_plugin.fetch_translations()
     return fs_plugin
 

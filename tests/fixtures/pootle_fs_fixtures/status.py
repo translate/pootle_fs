@@ -100,5 +100,5 @@ PLUGIN_STATUS["conflict"] = (
 
 
 @pytest.fixture
-def fs_status(fs_plugin_pulled, plugin_status, system):
+def fs_status(fs_plugin_pulled, plugin_status):
     return [fs_plugin_pulled] + list(PLUGIN_STATUS[plugin_status])
