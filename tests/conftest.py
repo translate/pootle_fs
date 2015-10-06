@@ -14,7 +14,9 @@ from django import setup
 from django.conf import settings
 
 from . import fixtures
-from .fixtures import models as fixture_models
+from .fixtures import(
+    models as fixture_models,
+    pootle_fs_fixtures)
 
 
 def pytest_configure():
@@ -38,4 +40,5 @@ def _load_fixtures(*modules):
                 yield name
 
 
-pytest_plugins = tuple(_load_fixtures(fixtures, fixture_models), )
+pytest_plugins = tuple(
+    _load_fixtures(fixtures, fixture_models, pootle_fs_fixtures), )

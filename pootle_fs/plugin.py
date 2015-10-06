@@ -283,7 +283,7 @@ class Plugin(object):
         with open(target) as f:
             content = f.read()
         return content
-    
+
     @lru_cache(maxsize=None)
     def read_config(self):
         """

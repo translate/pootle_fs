@@ -12,7 +12,7 @@ from ConfigParser import ConfigParser
 
 from pootle_store.models import Store
 
-from ..fixtures.pootle_fs_fixtures import (
+from ..fixtures.pootle_fs_fixtures.utils import (
     _test_status, _edit_file, _setup_store)
 
 
@@ -115,7 +115,7 @@ def test_plugin_add_translations_path(fs_plugin_pulled):
 @pytest.mark.django
 def test_plugin_push_translations_path(fs_plugin_pulled):
     plugin = fs_plugin_pulled
-    _setup_store(plugin, "subdir1/example5.po")
+
     plugin.add_translations()
     plugin.push_translations(fs_path='/gnu_style/*')
 
@@ -123,7 +123,6 @@ def test_plugin_push_translations_path(fs_plugin_pulled):
 @pytest.mark.django
 def test_plugin_fetch_translations_path(fs_plugin_pulled):
     plugin = fs_plugin_pulled
-    _edit_file(plugin, "gnu_style/po/en.po")
     plugin.fetch_translations(
         pootle_path="/en/tutorial/subdir1/*", fs_path="foo/nbar")
 
@@ -135,3 +134,12 @@ def test_plugin_pull_translations_path(fs_plugin_pulled):
     plugin.fetch_translations(force=True)
     plugin.pull_translations(
         pootle_path="/en/tutorial/subdir1/*", fs_path="foo/nbar")
+
+
+# Parametrized PATH_FILTERS
+@pytest.mark.django
+def test_plugin_fetch_paths(fs_fetch_paths):
+    plugin, path, outcome = fs_fetch_paths
+    plugin.fetch_translations(**path)
+    status = plugin.status()
+    assert outcome == {k: len(status[k]) for k in status}

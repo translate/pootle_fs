@@ -2,9 +2,9 @@ import logging
 import os
 from datetime import datetime
 
+from django.utils.functional import cached_property
+
 # from import_export.utils import import_file
-
-
 from pootle_app.models import Directory
 from pootle_language.models import Language
 from pootle_store.models import Store
@@ -47,7 +47,7 @@ class FSFile(object):
     def filename(self):
         return self.pootle_path.split("/")[-1]
 
-    @property
+    @cached_property
     def fs(self):
         return self.project.fs.get()
 
@@ -55,7 +55,7 @@ class FSFile(object):
     def project(self):
         return self.fs_store.project
 
-    @property
+    @cached_property
     def language(self):
         if self.fs_store.store:
             return self.fs_store.store.translation_project.language
