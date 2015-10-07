@@ -190,7 +190,7 @@ class ProjectFSStatus(object):
                         store_fs=store_fs)
 
     def get_fs_removed(self):
-        for store_fs in self.synced_translations:
+        for store_fs in self.synced_translations.exclude(resolve_conflict=POOTLE_WINS):
             if self._filtered(store_fs.pootle_path, store_fs.path):
                 continue
             if not store_fs.file.exists and store_fs.store:
