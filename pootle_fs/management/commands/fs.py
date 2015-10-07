@@ -17,15 +17,15 @@ from django.utils.termcolors import PALETTES, NOCOLOR_PALETTE
 PALETTES[NOCOLOR_PALETTE]["FS_MISSING"] = {}
 PALETTES["light"]["FS_MISSING"] = {'fg': 'magenta'}
 PALETTES[NOCOLOR_PALETTE]["FS_UNTRACKED"] = {}
-PALETTES["light"]["FS_UNTRACKED"] = {'fg': 'red', 'opts': ('bold',)}
+PALETTES["light"]["FS_UNTRACKED"] = {'fg': 'red'}
 PALETTES[NOCOLOR_PALETTE]["FS_ADDED"] = {}
-PALETTES["light"]["FS_ADDED"] = {'fg': 'red'}
+PALETTES["light"]["FS_ADDED"] = {'fg': 'green'}
 PALETTES[NOCOLOR_PALETTE]["FS_UPDATED"] = {}
-PALETTES["light"]["FS_UPDATED"] = {'fg': 'red'}
+PALETTES["light"]["FS_UPDATED"] = {'fg': 'green'}
 PALETTES[NOCOLOR_PALETTE]["FS_CONFLICT"] = {}
 PALETTES["light"]["FS_CONFLICT"] = {'fg': 'red', 'opts': ('bold',)}
 PALETTES[NOCOLOR_PALETTE]["FS_REMOVED"] = {}
-PALETTES["light"]["FS_REMOVED"] = {'fg': 'red', 'opts': ('bold',)}
+PALETTES["light"]["FS_REMOVED"] = {'fg': 'red'}
 
 
 # This must be run before importing Django.
