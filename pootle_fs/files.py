@@ -218,9 +218,6 @@ class FSFile(object):
         with open(self.file_path, "w") as f:
             f.write(str(datetime.now()))
         logger.debug("Pushed file: %s" % self.path)
-        self.on_sync(
-            self.latest_hash,
-            self.store.get_max_unit_revision())
 
     def pull(self):
         """
@@ -250,6 +247,5 @@ class FSFile(object):
         self.sync_from_pootle()
 
     def read(self):
-        # self.fs.pull()
         with open(self.file_path) as f:
             return f.read()

@@ -265,10 +265,12 @@ class Plugin(object):
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
+        pushed = []
         status = status or self.status(
             pootle_path=pootle_path, fs_path=fs_path)
         for fs_status in (status['pootle_added'] + status['pootle_ahead']):
             fs_status.store_fs.file.push()
+            pushed.append(fs_status)
         if prune:
             for fs_status in status['pootle_removed']:
                 fs_status.store_fs.file.delete()
@@ -276,7 +278,7 @@ class Plugin(object):
                 os.unlink(
                     os.path.join(
                         self.local_fs_path, fs_status.fs_path.strip("/")))
-        self.push()
+        return pushed
 
     def read(self, path):
         target = os.path.join(self.local_fs_path, path)
