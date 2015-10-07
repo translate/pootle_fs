@@ -259,6 +259,14 @@ class Plugin(object):
 
     def push_translations(self, prune=False, pootle_path=None,
                           fs_path=None, status=None):
+        for pushed in self.push_translation_files():
+            fs_file = pushed.store_fs.file
+            fs_file.on_sync(
+                fs_file.latest_hash,
+                pushed.store_fs.store.get_max_unit_revision())
+
+    def push_translation_files(self, prune=False, pootle_path=None,
+                                fs_path=None, status=None):
         """
         :param prune: Remove files that do not exist in Pootle.
         :param fs_path: Path glob to filter translations matching FS path

@@ -6,7 +6,7 @@ import pytest
 
 from ..utils import (
     _require_language, _require_project, _require_tp, _require_store,
-    _require_user, _register_plugin)
+    _require_user, _register_plugin, _setup_export_dir)
 
 
 @pytest.fixture
@@ -134,10 +134,12 @@ def delete_pattern():
     LocMemCache.delete_pattern = lambda x, y: 0
 
 
+
 @pytest.fixture
 def fs_plugin(tutorial_fs, tmpdir, settings, system, english, zulu):
     plugin = _register_plugin()
     dir_path = str(tmpdir.dirpath())
+    _setup_export_dir(dir_path, settings)
     settings.POOTLE_FS_PATH = dir_path
     tutorial_path = os.path.join(dir_path, tutorial_fs.project.code)
     if os.path.exists(tutorial_path):

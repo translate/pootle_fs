@@ -256,3 +256,10 @@ def _clear_fs(dir_path, tutorial_fs):
     tutorial_path = os.path.join(dir_path, tutorial_fs.project.code)
     if os.path.exists(tutorial_path):
         shutil.rmtree(tutorial_path)
+
+
+def _setup_export_dir(dir_path, settings):
+    export_dir = os.path.join(dir_path, "__exports__")
+    if os.path.exists(export_dir):
+        shutil.rmtree(export_dir)
+    settings.CACHES['exports']['LOCATION'] = export_dir
