@@ -281,7 +281,8 @@ class Plugin(object):
         pruned = []
         status = status or self.status(
             pootle_path=pootle_path, fs_path=fs_path)
-        for fs_status in (status['pootle_added'] + status['pootle_ahead']):
+        pushable = status['pootle_added'] + status['pootle_ahead']
+        for fs_status in pushable:
             fs_status.store_fs.file.push()
             pushed.append(fs_status)
         if prune:

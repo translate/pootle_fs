@@ -168,6 +168,13 @@ class ProjectFSStatus(object):
                     yield self.link_status_class(
                         "pootle_added",
                         store_fs=store_fs)
+        synced = self.synced_translations.filter(
+            resolve_conflict=POOTLE_WINS)
+        for store_fs in synced:
+            if not store_fs.file.exists and store_fs.store:
+                yield self.link_status_class(
+                    "pootle_added",
+                    store_fs=store_fs)
 
     @lru_cache(maxsize=None)
     def _filtered(self, pootle_path, fs_path):
@@ -190,7 +197,9 @@ class ProjectFSStatus(object):
                         store_fs=store_fs)
 
     def get_fs_removed(self):
-        for store_fs in self.synced_translations.exclude(resolve_conflict=POOTLE_WINS):
+        synced = self.synced_translations.exclude(
+            resolve_conflict=POOTLE_WINS)
+        for store_fs in synced: 
             if self._filtered(store_fs.pootle_path, store_fs.path):
                 continue
             if not store_fs.file.exists and store_fs.store:

@@ -238,8 +238,9 @@ class FSFile(object):
         """
         current_revision = self.store.get_max_unit_revision()
         last_revision = self.fs_store.last_sync_revision
-        if last_revision and (last_revision == current_revision):
-            return
+        if self.exists:
+            if last_revision and (last_revision == current_revision):
+                return
         logger.debug("Pushing file: %s" % self.path)
         directory = os.path.dirname(self.fs_store.file.file_path)
         if not os.path.exists(directory):
