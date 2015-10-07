@@ -113,6 +113,8 @@ class Plugin(object):
                 pootle_path=fs_status.pootle_path,
                 path=fs_status.fs_path).file.add()
         if force:
+            for fs_status in status["fs_removed"]:
+                fs_status.store_fs.file.add()
             for fs_status in status["conflict"]:
                 fs_status.store_fs.file.add()
 
@@ -142,6 +144,8 @@ class Plugin(object):
                 path=fs_status.fs_path)
             fs_store.file.fetch()
         if force:
+            for fs_status in status["pootle_removed"]:
+                fs_status.store_fs.file.fetch()
             for fs_status in status["conflict"]:
                 fs_status.store_fs.file.fetch()
 
@@ -237,13 +241,11 @@ class Plugin(object):
             fs_status.store_fs.file.pull()
 
         if prune:
-            prunable = status['fs_removed'] + status["pootle_untracked"]
-            for fs_status in prunable:
-                if fs_status.store_fs:
-                    fs_status.store_fs.file.delete()
-                else:
-                    Store.objects.get(
-                        pootle_path=fs_status.pootle_path).delete()
+            for fs_status in status['fs_removed']:
+                fs_status.store_fs.file.delete()
+            for fs_status in status["pootle_untracked"]:
+                Store.objects.get(
+                    pootle_path=fs_status.pootle_path).delete()
 
     def pull(self):
         """
@@ -259,11 +261,13 @@ class Plugin(object):
 
     def push_translations(self, prune=False, pootle_path=None,
                           fs_path=None, status=None):
-        for pushed in self.push_translation_files():
-            fs_file = pushed.store_fs.file
+        pushed, pruned = self.push_translation_files(
+            prune=prune, pootle_path=pootle_path, fs_path=fs_path)
+        for fs_status in pushed:
+            fs_file = fs_status.store_fs.file
             fs_file.on_sync(
                 fs_file.latest_hash,
-                pushed.store_fs.store.get_max_unit_revision())
+                fs_status.store_fs.store.get_max_unit_revision())
 
     def push_translation_files(self, prune=False, pootle_path=None,
                                 fs_path=None, status=None):
@@ -274,6 +278,7 @@ class Plugin(object):
           ``pootle_path``
         """
         pushed = []
+        pruned = []
         status = status or self.status(
             pootle_path=pootle_path, fs_path=fs_path)
         for fs_status in (status['pootle_added'] + status['pootle_ahead']):
@@ -282,11 +287,13 @@ class Plugin(object):
         if prune:
             for fs_status in status['pootle_removed']:
                 fs_status.store_fs.file.delete()
+                pruned.append(fs_status)
             for fs_status in status['fs_untracked']:
+                pruned.append(fs_status)                
                 os.unlink(
                     os.path.join(
                         self.local_fs_path, fs_status.fs_path.strip("/")))
-        return pushed
+        return pushed, pruned
 
     def read(self, path):
         target = os.path.join(self.local_fs_path, path)
