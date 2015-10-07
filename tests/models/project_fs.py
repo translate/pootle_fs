@@ -12,7 +12,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
-from ..fixtures.pootle_fs_fixtures.utils import (
+from pootle_fs_pytest.utils import (
     _register_plugin, _clear_plugins)
 
 

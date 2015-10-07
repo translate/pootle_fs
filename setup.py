@@ -42,4 +42,4 @@ setup(
     keywords='pootle filesystem plugins',
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     install_requires=['rq_scheduler', 'pootle'],
-)
+    entry_points={'pytest11': ['pootle_fs = pootle_fs_pytest.plugin']})

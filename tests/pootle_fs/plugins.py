@@ -9,7 +9,8 @@
 
 import pytest
 
-from ..fixtures.pootle_fs_fixtures.utils import _clear_plugins
+from pootle_fs_pytest.utils import _clear_plugins
+
 from pootle_fs import Plugin, plugins
 
 

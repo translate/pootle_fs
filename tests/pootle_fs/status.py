@@ -12,7 +12,7 @@ import pytest
 from pootle_fs.models import StoreFS
 from pootle_fs.status import ProjectFSStatus
 
-from ..fixtures.pootle_fs_fixtures.utils import (
+from pootle_fs_pytest.utils import (
     STATUS_TYPES, _test_status, _edit_file)
 
 

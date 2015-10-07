@@ -8,19 +8,14 @@
 # AUTHORS file for copyright and authorship information.
 
 from collections import OrderedDict
-import os
-import shutil
 
 import pytest
 
-from .utils import (
-    _clear_fs, _edit_file, _register_plugin, _setup_dir, _setup_store,
+from pootle_fs_pytest.utils import (
+    _register_plugin,
+    _clear_fs, _edit_file, _setup_dir, _setup_store,
     _update_store)
 
-STATUS_TYPES = [
-    "pootle_ahead", "pootle_added", "pootle_untracked", "pootle_removed",
-    "fs_ahead", "fs_added", "fs_untracked", "fs_removed",
-    "conflict", "conflict_untracked"]
 
 EXPECTED_FS_STORES = [
     (u'/en/tutorial/en.po',
@@ -103,17 +98,6 @@ def expected_fs_stores():
 def fs_fetch_paths(fs_plugin_pulled, plugin_fetch_paths):
     _edit_file(fs_plugin_pulled, "non_gnu_style/locales/en/foo/bar/baz.po")
     return [fs_plugin_pulled] + list(PLUGIN_FETCH_PATHS[plugin_fetch_paths])
-
-
-@pytest.fixture
-def fs_plugin(tutorial_fs, tmpdir, settings, system, english, zulu):
-    plugin = _register_plugin()
-    dir_path = str(tmpdir.dirpath())
-    settings.POOTLE_FS_PATH = dir_path
-    tutorial_path = os.path.join(dir_path, tutorial_fs.project.code)
-    if os.path.exists(tutorial_path):
-        shutil.rmtree(tutorial_path)
-    return plugin(tutorial_fs)
 
 
 @pytest.fixture

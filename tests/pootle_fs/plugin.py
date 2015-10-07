@@ -12,7 +12,7 @@ from ConfigParser import ConfigParser
 
 from pootle_store.models import Store
 
-from ..fixtures.pootle_fs_fixtures.utils import (
+from pootle_fs_pytest.utils import (
     _test_status, _edit_file, _setup_store)
 
 

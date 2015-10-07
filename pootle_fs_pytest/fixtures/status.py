@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 import pytest
 
-from .utils import (
+from pootle_fs_pytest.utils import (
     _create_conflict, _edit_file, _remove_file, _remove_store, _setup_store,
     _update_store)
 

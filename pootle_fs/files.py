@@ -4,10 +4,11 @@ from datetime import datetime
 
 from django.utils.functional import cached_property
 
-from import_export.utils import import_file
+from translate.storage.factory import getclass
 
 from pootle_app.models import Directory
 from pootle_language.models import Language
+from pootle_statistics.models import SubmissionTypes
 from pootle_store.models import Store
 from pootle_translationproject.models import TranslationProject
 
@@ -201,11 +202,10 @@ class FSFile(object):
         Update Pootle ``Store`` with the parsed FS file.
         """
         with open(self.file_path) as f:
-            if self.store:
-                rev = self.store.get_max_unit_revision()
-            else:
-                rev = None
-            import_file(f, pootle_path=self.pootle_path, rev=rev)
+            self.store.update(
+                overwrite=True,
+                store=getclass(f)(f.read()),
+                submission_type=SubmissionTypes.UPLOAD)
         logger.debug("Pulled file: %s" % self.path)
         self.on_sync(
             self.latest_hash,
@@ -228,7 +228,7 @@ class FSFile(object):
         """
         logger.debug("Pulling file: %s" % self.path)
         if not self.store:
-            store = self.create_store()
+            self.create_store()
         if not self.fs_store.store == self.store:
             self.fs_store.store = self.store
             self.fs_store.save()
