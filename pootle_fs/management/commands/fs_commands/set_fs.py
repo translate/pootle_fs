@@ -31,9 +31,8 @@ class SetFSCommand(SubCommand):
             fs = self.project.fs.get()
         except ProjectFS.DoesNotExist:
             fs = self.project.fs.create(fs_type=args[0])
-        if fs.url != args[1] or fs_type != args[0]:
+        if fs.url != args[1] or fs.fs_type != args[0]:
             fs.plugin.clear_repo()
         fs.fs_type = args[0]
         fs.url = args[1]
         fs.save()
-

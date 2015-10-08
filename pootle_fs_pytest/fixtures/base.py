@@ -134,7 +134,6 @@ def delete_pattern():
     LocMemCache.delete_pattern = lambda x, y: 0
 
 
-
 @pytest.fixture
 def fs_plugin(tutorial_fs, tmpdir, settings, system, english, zulu):
     plugin = _register_plugin()

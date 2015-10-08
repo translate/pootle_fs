@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from fnmatch import fnmatch
 import logging
+import re
 import os
 
 from django.utils.functional import cached_property
@@ -51,22 +52,30 @@ FS_STATUS["fs_removed"] = {
 FS_ACTION = OrderedDict()
 FS_ACTION["pruned_from_pootle"] = {
     "title": "Deleted in Pootle",
-    "description": "Stores removed from Pootle that were not present in the filesystem"}
+    "description":
+        "Stores removed from Pootle that were not present in the filesystem"}
 FS_ACTION["pulled_to_pootle"] = {
     "title": "Pulled to Pootle",
-    "description": "Stores updated where filesystem version was new or newer"}
+    "description":
+        "Stores updated where filesystem version was new or newer"}
 FS_ACTION["added_from_pootle"] = {
     "title": "Added from Pootle",
-    "description": "Files staged from Pootle that were new or newer than their files"}
+    "description":
+        "Files staged from Pootle that were new or newer than their files"}
 FS_ACTION["pruned_from_fs"] = {
     "title": "Pruned from filesystem",
-    "description": "Files removed from the filesystem that did not have matching Pootle Stores"}
+    "description":
+        ("Files removed from the filesystem that did not have matching Pootle "
+         "Stores")}
 FS_ACTION["fetched_from_fs"] = {
     "title": "Fetched from filesystem",
-    "description": "Files staged from the filesystem that were new or newer than their Pootle Stores"}
+    "description":
+        ("Files staged from the filesystem that were new or newer than their "
+         "Pootle Stores")}
 FS_ACTION["pushed_to_fs"] = {
     "title": "Pushed to filesystem",
-    "description": "Files updated where Pootle Store version was new or newer"}
+    "description":
+        "Files updated where Pootle Store version was new or newer"}
 
 
 class Status(object):
@@ -168,7 +177,8 @@ class ActionResponse(object):
         st_type = self.get_action_type(action_type)
         return (
             "%s (%s)"
-            % (st_type['title'], len(self.__actions__['success'][action_type])))
+            % (st_type['title'],
+               len(self.__actions__['success'][action_type])))
 
     def get_action_description(self, action_type, failures=False):
         return self.get_action_type(action_type)["description"]
@@ -207,11 +217,37 @@ class ProjectFSStatus(object):
 
     @cached_property
     def unsynced_translations(self):
-        return self.fs.unsynced_translations
+        unsynced = self.fs.unsynced_translations
+        if self.pootle_path:
+            unsynced = unsynced.filter(
+                pootle_path__startswith=self.pootle_path_root)
+        if self.fs_path:
+            unsynced = unsynced.filter(
+                path__startswith=self.fs_path_root)
+        return unsynced
 
     @cached_property
     def synced_translations(self):
-        return self.fs.synced_translations
+        synced = self.fs.synced_translations
+        if self.pootle_path:
+            synced = synced.filter(
+                pootle_path__startswith=self.pootle_path_root)
+        if self.fs_path:
+            synced = synced.filter(
+                path__startswith=self.fs_path_root)
+        return synced
+
+    @cached_property
+    def pootle_path_root(self):
+        return self._path_root.sub("", self.pootle_path)
+
+    @cached_property
+    def _path_root(self):
+        return re.compile("[\?\[\*].*")
+
+    @cached_property
+    def fs_path_root(self):
+        return self._path_root.sub("", self.fs_path)
 
     def get_status_type(self, status_type):
         return FS_STATUS[status_type]
@@ -317,6 +353,7 @@ class ProjectFSStatus(object):
     def get_fs_removed(self):
         synced = self.synced_translations.exclude(
             resolve_conflict=POOTLE_WINS)
+
         for store_fs in synced:
             if self._filtered(store_fs.pootle_path, store_fs.path):
                 continue

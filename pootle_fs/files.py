@@ -1,6 +1,5 @@
 import logging
 import os
-from datetime import datetime
 
 from django.utils.functional import cached_property
 

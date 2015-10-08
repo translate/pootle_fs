@@ -291,7 +291,7 @@ class Plugin(object):
         return response
 
     def push_translation_files(self, prune=False, pootle_path=None,
-                                fs_path=None, status=None):
+                               fs_path=None, status=None):
         """
         :param prune: Remove files that do not exist in Pootle.
         :param fs_path: Path glob to filter translations matching FS path

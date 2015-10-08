@@ -27,4 +27,5 @@ class PushTranslationsCommand(TranslationsSubCommand):
         self.handle_response(
             self.get_fs(project_code).push_translations(
                 prune=options["prune"],
-                fs_path=options['fs_path'], pootle_path=options['pootle_path']))
+                fs_path=options['fs_path'],
+                pootle_path=options['pootle_path']))

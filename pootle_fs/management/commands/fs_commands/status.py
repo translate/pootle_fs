@@ -10,7 +10,6 @@
 from optparse import make_option
 
 from pootle_fs.management.commands import TranslationsSubCommand
-from pootle_fs.status import FS_STATUS
 
 
 class StatusCommand(TranslationsSubCommand):
