@@ -48,24 +48,130 @@ FS_STATUS["fs_removed"] = {
     "title": "Removed from filesystem",
     "description": "Files that have been removed from the filesystem"}
 
+FS_ACTION = OrderedDict()
+FS_ACTION["pruned_from_pootle"] = {
+    "title": "Deleted in Pootle",
+    "description": "Stores removed from Pootle that were not present in the filesystem"}
+FS_ACTION["pulled_to_pootle"] = {
+    "title": "Pulled to Pootle",
+    "description": "Stores updated where filesystem version was new or newer"}
+FS_ACTION["added_from_pootle"] = {
+    "title": "Added from Pootle",
+    "description": "Files staged from Pootle that were new or newer than their files"}
+FS_ACTION["pruned_from_fs"] = {
+    "title": "Pruned from filesystem",
+    "description": "Files removed from the filesystem that did not have matching Pootle Stores"}
+FS_ACTION["fetched_from_fs"] = {
+    "title": "Fetched from filesystem",
+    "description": "Files staged from the filesystem that were new or newer than their Pootle Stores"}
+FS_ACTION["pushed_to_fs"] = {
+    "title": "Pushed to filesystem",
+    "description": "Files updated where Pootle Store version was new or newer"}
+
 
 class Status(object):
 
     def __init__(self, status, store_fs=None, store=None,
                  fs_path=None, pootle_path=None):
+        self.status = status
         self.store_fs = store_fs
         self.store = store
         self.fs_path = fs_path
         self.pootle_path = pootle_path
-        if store_fs:
-            self.fs_path = store_fs.path
-            self.pootle_path = store_fs.pootle_path
-        elif store:
-            self.pootle_path = store.pootle_path
+        self._set_paths()
+
+    def _set_paths(self):
+        if self.store_fs:
+            self.fs_path = self.store_fs.path
+            self.pootle_path = self.store_fs.pootle_path
+        elif self.store:
+            self.pootle_path = self.store.pootle_path
 
         if not self.fs_path or not self.pootle_path:
             raise ValueError(
                 "Status class requires fs_path and pootle_path to be set")
+
+
+class ActionStatus(Status):
+
+    def __init__(self, success, action, original_status, msg=None):
+        self.action = action
+        self.success = success
+        self.original_status = original_status
+
+    @property
+    def store_fs(self):
+        return self.original_status.store_fs
+
+    @property
+    def store(self):
+        return self.original_status.store
+
+    @property
+    def fs_path(self):
+        return self.original_status.fs_path
+
+    @property
+    def pootle_path(self):
+        return self.original_status.pootle_path
+
+
+class ActionResponse(object):
+
+    __actions__ = None
+
+    def __init__(self, plugin):
+        self.plugin = plugin
+        self.__actions__ = dict(success={}, failed={})
+        for k in FS_ACTION.keys():
+            self.__actions__['success'][k] = []
+            self.__actions__['failed'][k] = []
+
+    def __iter__(self):
+        for k in self.__actions__['success']:
+            if self.__actions__['success'][k]:
+                yield k
+
+    def __getitem__(self, k):
+        return self.__actions__['success'][k]
+
+    @property
+    def success(self):
+        for k in self:
+            for action in self.__actions__['success'][k]:
+                yield action
+
+    @property
+    def made_changes(self):
+        return any(x for x in self)
+
+    @property
+    def errors(self):
+        return self.__actions__['failed']
+
+    @property
+    def failed(self):
+        return any(x for x in self.errors)
+
+    def add(self, success, action, fs_status, msg=None):
+        if success:
+            self.__actions__['success'][action].append(
+                ActionStatus(success, action, fs_status, msg))
+        else:
+            self.__actions__['failed'][action].append(
+                ActionStatus(success, action, fs_status, msg))
+
+    def get_action_type(self, action_type):
+        return FS_ACTION[action_type]
+
+    def get_action_title(self, action_type, failures=False):
+        st_type = self.get_action_type(action_type)
+        return (
+            "%s (%s)"
+            % (st_type['title'], len(self.__actions__['success'][action_type])))
+
+    def get_action_description(self, action_type, failures=False):
+        return self.get_action_type(action_type)["description"]
 
 
 class ProjectFSStatus(object):
@@ -106,6 +212,18 @@ class ProjectFSStatus(object):
     @cached_property
     def synced_translations(self):
         return self.fs.synced_translations
+
+    def get_status_type(self, status_type):
+        return FS_STATUS[status_type]
+
+    def get_status_title(self, status_type):
+        st_type = self.get_status_type(status_type)
+        return (
+            "%s (%s)"
+            % (st_type['title'], len(self[status_type])))
+
+    def get_status_description(self, status_type):
+        return self.get_status_type(status_type)['description']
 
     def get_conflict_untracked(self):
         reversed_paths = self.store_reversed_paths
@@ -199,7 +317,7 @@ class ProjectFSStatus(object):
     def get_fs_removed(self):
         synced = self.synced_translations.exclude(
             resolve_conflict=POOTLE_WINS)
-        for store_fs in synced: 
+        for store_fs in synced:
             if self._filtered(store_fs.pootle_path, store_fs.path):
                 continue
             if not store_fs.file.exists and store_fs.store:

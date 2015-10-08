@@ -30,23 +30,11 @@ class StatusCommand(TranslationsSubCommand):
                 fs_path=self.fs_path, pootle_path=self.pootle_path)
         return self.__status__
 
-    def get_status_type(self, status_type):
-        return FS_STATUS[status_type]
-
-    def get_status_title(self, status_type):
-        st_type = self.get_status_type(status_type)
-        return (
-            "%s (%s)"
-            % (st_type['title'], len(self.status[status_type])))
-
-    def get_status_description(self, status_type):
-        return self.get_status_type(status_type)['description']
-
     def handle_status(self, status_type):
-        title = self.get_status_title(status_type)
+        title = self.status.get_status_title(status_type)
         self.stdout.write(title, self.style.HTTP_INFO)
         self.stdout.write("-" * len(title))
-        self.stdout.write(self.get_status_description(status_type))
+        self.stdout.write(self.status.get_status_description(status_type))
         self.stdout.write("")
         handler = getattr(self, "handle_%s" % status_type, None)
         if handler:
@@ -88,7 +76,7 @@ class StatusCommand(TranslationsSubCommand):
             self.stdout.write("%s" % status.fs_path, self.style.FS_ADDED)
 
     def handle_fs_ahead(self):
-        for status in self.status["fs_added"]:
+        for status in self.status["fs_ahead"]:
             self.stdout.write(
                 "  %s" % status.pootle_path)
             self.stdout.write("   <-->  ", ending="")

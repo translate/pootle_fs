@@ -24,7 +24,7 @@ class AddTranslationsCommand(TranslationsSubCommand):
     option_list = TranslationsSubCommand.option_list + shared_option_list
 
     def handle(self, project_code, *args, **options):
-        self.fs = self.get_fs(project_code)
-        self.fs.add_translations(
-            force=options["force"],
-            fs_path=options['fs_path'], pootle_path=options['pootle_path'])
+        self.handle_response(
+            self.get_fs(project_code).add_translations(
+                force=options["force"],
+                fs_path=options['fs_path'], pootle_path=options['pootle_path']))

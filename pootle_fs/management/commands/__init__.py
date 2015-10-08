@@ -27,7 +27,8 @@ class SubCommand(BaseCommand):
     def get_fs(self, project_code):
         self.get_project(project_code)
         try:
-            return self.project.fs.get()
+            self.fs = self.project.fs.get()
+            return self.fs
         except ProjectFS.DoesNotExist:
             raise CommandError(
                 "Project (%s) is not managed in FS"
@@ -50,3 +51,23 @@ class TranslationsSubCommand(SubCommand):
         if not self.__plugin__ and hasattr(self, "fs"):
             self.__plugin__ = self.fs.plugin
         return self.__plugin__
+
+    def handle_response(self, response):
+        self.response = response
+        for action_type in self.response:
+            self.handle_actions(action_type)
+
+    def handle_actions(self, action_type):
+        title = self.response.get_action_title(action_type)
+        self.stdout.write(title, self.style.HTTP_INFO)
+        self.stdout.write("-" * len(title))
+        self.stdout.write(self.response.get_action_description(action_type))
+        self.stdout.write("")
+        handler = getattr(self, "handle_%s" % action_type, None)
+        if handler:
+            handler()
+        else:
+            for action in self.response[action_type]:
+                self.stdout.write("  %s" % action.pootle_path)
+                self.stdout.write("   <-->  %s" % action.fs_path)
+        self.stdout.write("")
