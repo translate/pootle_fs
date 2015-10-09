@@ -17,7 +17,7 @@ from pootle_fs_pytest.utils import (
 
 
 @pytest.mark.django
-def test_status_instance(fs_plugin, english, zulu, expected_fs_stores):
+def test_status_instance(fs_plugin):
     assert fs_plugin.is_cloned is False
     status = fs_plugin.status()
 
@@ -32,16 +32,11 @@ def test_status_instance(fs_plugin, english, zulu, expected_fs_stores):
             continue
         assert status[k] == []
         assert k not in status
-    assert (
-        sorted(expected_fs_stores) == sorted(
-            [(s.pootle_path, s.fs_path)
-             for s in status['fs_untracked']]))
 
     # when we fetch the translations their status is set to fs_added
     fs_plugin.fetch_translations()
     status = fs_plugin.status()
     assert "fs_added" in status
-    assert len(status["fs_added"]) == len(expected_fs_stores)
     assert all([isinstance(x.store_fs, StoreFS) for x in status['fs_added']])
 
     # pulling the translations makes us up-to-date
@@ -50,10 +45,16 @@ def test_status_instance(fs_plugin, english, zulu, expected_fs_stores):
     assert status.has_changed is False
 
     # We can reload the status object with status.check_status()
-    _edit_file(fs_plugin, "gnu_style/po/en.po")
+    old_status = fs_plugin.status()
+    _edit_file(fs_plugin, "/gnu_style/po/en.po")
+    assert old_status.has_changed is False
     assert status.has_changed is False
-    status.check_status()
+
+    new_status = status.check_status()
+
+    assert old_status.has_changed is False
     assert status.has_changed is True
+    assert new_status.has_changed is True
 
 
 # Parametrized: PLUGIN_STATUS

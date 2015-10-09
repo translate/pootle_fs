@@ -7,7 +7,9 @@ import os
 from django.utils.functional import cached_property
 from django.utils.lru_cache import lru_cache
 
-from .models import FS_WINS, POOTLE_WINS
+from pootle_store.models import Store
+
+from .models import FS_WINS, POOTLE_WINS, StoreFS
 
 
 logger = logging.getLogger(__name__)
@@ -80,6 +82,21 @@ FS_ACTION["pushed_to_fs"] = {
 
 class Status(object):
 
+    def __eq__(self, other):
+        eq = (
+            isinstance(other, self.__class__)
+            and other.status == self.status
+            and other.store_fs == self.store_fs
+            and other.store == self.store
+            and other.fs_path == self.fs_path
+            and other.pootle_path == self.pootle_path)
+        return eq
+
+    def __gt__(self, other):
+        if isinstance(other, self.__class__):
+            return self.pootle_path > other.pootle_path
+        return super(Status, self).__gt__(other)
+
     def __init__(self, status, store_fs=None, store=None,
                  fs_path=None, pootle_path=None):
         self.status = status
@@ -110,11 +127,24 @@ class ActionStatus(Status):
 
     @property
     def store_fs(self):
-        return self.original_status.store_fs
+        if self.original_status.store_fs:
+            return self.original_status.store_fs
+        try:
+            return StoreFS.objects.get(
+                pootle_path=self.original_status.pootle_path,
+                fs_path=self.original_status.fs_path)
+        except:
+            return None
 
     @property
     def store(self):
-        return self.original_status.store
+        if self.original_status.store:
+            return self.original_status.store
+        try:
+            return Store.objects.get(
+                pootle_path=self.original_status.pootle_path)
+        except Store.DoesNotExist:
+            return None
 
     @property
     def fs_path(self):
@@ -143,6 +173,9 @@ class ActionResponse(object):
 
     def __getitem__(self, k):
         return self.__actions__['success'][k]
+
+    def __len__(self):
+        return len([x for x in self.__iter__()])
 
     @property
     def success(self):
@@ -313,23 +346,6 @@ class ProjectFSStatus(object):
                     store=store,
                     fs_path=path)
 
-    def get_pootle_added(self):
-        for store_fs in self.unsynced_translations:
-            if self._filtered(store_fs.pootle_path, store_fs.path):
-                continue
-            if store_fs.store:
-                if not store_fs.resolve_conflict == FS_WINS:
-                    yield self.link_status_class(
-                        "pootle_added",
-                        store_fs=store_fs)
-        synced = self.synced_translations.filter(
-            resolve_conflict=POOTLE_WINS)
-        for store_fs in synced:
-            if not store_fs.file.exists and store_fs.store:
-                yield self.link_status_class(
-                    "pootle_added",
-                    store_fs=store_fs)
-
     @lru_cache(maxsize=None)
     def _filtered(self, pootle_path, fs_path):
         return (
@@ -340,15 +356,41 @@ class ProjectFSStatus(object):
              and not fnmatch(fs_path, self.fs_path)))
 
     def get_fs_added(self):
-        for store_fs in self.unsynced_translations:
+        unsynced = self.unsynced_translations.exclude(
+            resolve_conflict=POOTLE_WINS)
+        for store_fs in unsynced:
             if self._filtered(store_fs.pootle_path, store_fs.path):
                 continue
 
             if store_fs.file.exists:
-                if not store_fs.resolve_conflict == POOTLE_WINS:
-                    yield self.link_status_class(
-                        "fs_added",
-                        store_fs=store_fs)
+                yield self.link_status_class(
+                    "fs_added",
+                    store_fs=store_fs)
+        synced = self.synced_translations.filter(
+            resolve_conflict=FS_WINS)
+        for store_fs in synced:
+            if not store_fs.store and store_fs.file.exists:
+                yield self.link_status_class(
+                    "fs_added",
+                    store_fs=store_fs)
+
+    def get_pootle_added(self):
+        unsynced = self.unsynced_translations.exclude(
+            resolve_conflict=FS_WINS)
+        for store_fs in unsynced:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
+            if store_fs.store:
+                yield self.link_status_class(
+                    "pootle_added",
+                    store_fs=store_fs)
+        synced = self.synced_translations.filter(
+            resolve_conflict=POOTLE_WINS)
+        for store_fs in synced:
+            if not store_fs.file.exists and store_fs.store:
+                yield self.link_status_class(
+                    "pootle_added",
+                    store_fs=store_fs)
 
     def get_fs_removed(self):
         synced = self.synced_translations.exclude(
@@ -363,7 +405,10 @@ class ProjectFSStatus(object):
                     store_fs=store_fs)
 
     def get_pootle_removed(self):
-        for store_fs in self.synced_translations:
+        synced = self.synced_translations.exclude(
+            resolve_conflict=FS_WINS)
+
+        for store_fs in synced:
             if self._filtered(store_fs.pootle_path, store_fs.path):
                 continue
             if store_fs.file.exists and not store_fs.store:
@@ -373,6 +418,8 @@ class ProjectFSStatus(object):
 
     def get_both_removed(self):
         for store_fs in self.synced_translations:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
             if not store_fs.file.exists and not store_fs.store:
                 yield self.link_status_class(
                     "both_removed",
@@ -385,6 +432,8 @@ class ProjectFSStatus(object):
 
     def get_fs_ahead(self):
         for store_fs in self.synced_translations:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
             pootle_changed, fs_changed = self._get_changes(store_fs)
             if fs_changed:
                 if not pootle_changed or store_fs.resolve_conflict == FS_WINS:
@@ -394,6 +443,8 @@ class ProjectFSStatus(object):
 
     def get_pootle_ahead(self):
         for store_fs in self.synced_translations:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
             pootle_changed, fs_changed = self._get_changes(store_fs)
             if pootle_changed:
                 if not fs_changed or store_fs.resolve_conflict == POOTLE_WINS:
@@ -403,6 +454,8 @@ class ProjectFSStatus(object):
 
     def get_conflict(self):
         for store_fs in self.synced_translations:
+            if self._filtered(store_fs.pootle_path, store_fs.path):
+                continue
             pootle_changed, fs_changed = self._get_changes(store_fs)
             if fs_changed and pootle_changed and not store_fs.resolve_conflict:
                 yield self.link_status_class(
@@ -420,7 +473,7 @@ class ProjectFSStatus(object):
     def __init__(self, fs, fs_path=None, pootle_path=None):
         self.fs = fs
         self.__status__ = {}
-        self.check_status(fs_path=fs_path, pootle_path=pootle_path)
+        self._check_status(fs_path=fs_path, pootle_path=pootle_path)
 
     def _clear_cache(self):
         for k in self.__dict__.keys():
@@ -430,7 +483,7 @@ class ProjectFSStatus(object):
         self._filtered.cache_clear()
         self.__status__ = {k: [] for k in FS_STATUS.keys()}
 
-    def check_status(self, fs_path=None, pootle_path=None):
+    def _check_status(self, fs_path=None, pootle_path=None):
         self.fs_path = fs_path
         self.pootle_path = pootle_path
         self._clear_cache()
@@ -440,6 +493,11 @@ class ProjectFSStatus(object):
             for v in getattr(self, "get_%s" % k)():
                 self.add(k, v)
         return self
+
+    def check_status(self, fs_path=None, pootle_path=None):
+        self.fs.pull()
+        return self._check_status(
+            fs_path=fs_path, pootle_path=pootle_path)
 
     def __getitem__(self, k):
         return self.__status__[k]

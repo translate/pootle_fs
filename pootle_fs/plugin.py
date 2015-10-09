@@ -146,7 +146,7 @@ class Plugin(object):
         status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["fs_untracked"]
         if force:
-            to_create += status["conflict_untracked"]
+            to_create = to_create + status["conflict_untracked"]
 
         for fs_status in to_create:
             fs_store = StoreFS.objects.create(
@@ -284,10 +284,12 @@ class Plugin(object):
         response = self.push_translation_files(
             prune=prune, pootle_path=pootle_path, fs_path=fs_path)
         for action_status in response.success:
-            fs_file = action_status.store_fs.file
-            fs_file.on_sync(
-                fs_file.latest_hash,
-                action_status.store_fs.store.get_max_unit_revision())
+            if action_status.action == "pushed_to_fs":
+                fs_file = action_status.store_fs.file
+                fs_file.on_sync(
+                    fs_file.latest_hash,
+                    action_status.store_fs.store.get_max_unit_revision())
+        self.push()
         return response
 
     def push_translation_files(self, prune=False, pootle_path=None,
@@ -308,9 +310,9 @@ class Plugin(object):
         if prune:
             for fs_status in status['pootle_removed']:
                 fs_status.store_fs.file.delete()
-                response.add(True, 'removed_from_fs', fs_status)
+                response.add(True, 'pruned_from_fs', fs_status)
             for fs_status in status['fs_untracked']:
-                response.add(True, 'removed_from_fs', fs_status)
+                response.add(True, 'pruned_from_fs', fs_status)
                 os.unlink(
                     os.path.join(
                         self.local_fs_path, fs_status.fs_path.strip("/")))

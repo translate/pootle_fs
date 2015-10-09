@@ -177,7 +177,7 @@ class FSFile(object):
 
     def fetch(self):
         """
-        Called when FS fils is fetched
+        Called when FS file is fetched
         """
         logger.debug("Fetching file: %s" % self.path)
         if self.store and not self.fs_store.store:

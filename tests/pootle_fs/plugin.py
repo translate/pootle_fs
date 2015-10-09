@@ -10,19 +10,8 @@
 import pytest
 from ConfigParser import ConfigParser
 
-from pootle_store.models import Store
-
-from pootle_fs_pytest.utils import (
-    _test_status, _edit_file, _setup_store)
-
-
-@pytest.mark.django
-def test_plugin_instance(fs_plugin):
-    assert fs_plugin.project == fs_plugin.fs.project
-    assert fs_plugin.local_fs_path.endswith(fs_plugin.project.code)
-    assert fs_plugin.is_cloned is False
-    assert fs_plugin.stores.exists() is False
-    assert fs_plugin.translations.exists() is False
+from pootle_fs_pytest.suite import (
+    run_fetch_test, run_add_test, run_pull_test, run_push_test)
 
 
 @pytest.mark.django
@@ -43,6 +32,15 @@ def test_plugin_pull(fs_plugin):
 
 
 @pytest.mark.django
+def test_plugin_instance(fs_plugin):
+    assert fs_plugin.project == fs_plugin.fs.project
+    assert fs_plugin.local_fs_path.endswith(fs_plugin.project.code)
+    assert fs_plugin.is_cloned is False
+    assert fs_plugin.stores.exists() is False
+    assert fs_plugin.translations.exists() is False
+
+
+@pytest.mark.django
 def test_plugin_read_config(fs_plugin):
     fs_plugin.pull()
     config = fs_plugin.read_config()
@@ -50,96 +48,25 @@ def test_plugin_read_config(fs_plugin):
     assert config.sections() == ['default', 'subdir1', 'subdir2', 'subdir3']
 
 
+# Parametrized FETCH
 @pytest.mark.django
-def test_plugin_push_translations(fs_plugin_pulled, expected_fs_stores):
-    plugin = fs_plugin_pulled
-
-    # add a Store object
-    sibling = plugin.stores.get(
-        pootle_path="/en/tutorial/subdir1/example1.po")
-    Store.objects.create(
-        parent=sibling.parent,
-        translation_project=sibling.translation_project,
-        name="example5.po")
-
-    status = plugin.status()
-    assert status.has_changed is True
-    assert len(status["pootle_untracked"]) == 1
-
-    plugin.add_translations()
-
-    status = plugin.status()
-    assert status.has_changed is True
-    assert len(status["pootle_added"]) == 1
-
-    plugin.push_translations()
-    status = plugin.status()
-    assert status.has_changed is False
+def test_plugin_fetch(fs_plugin_suite, fetch_translations):
+    run_fetch_test(fs_plugin_suite, **fetch_translations)
 
 
-# Parametrized: CONFLICT
+# Parametrized ADD
 @pytest.mark.django
-def test_plugin_conflict(fs_plugin_conflicted_param):
-    name, plugin, callback, outcome = fs_plugin_conflicted_param
-    conflict_type = "conflict"
-    if name.startswith("conflict_untracked"):
-        conflict_type = "conflict_untracked"
-    conflict = plugin.status()[conflict_type]
-    assert conflict
-    callback(plugin)
-    if not outcome:
-        outcome = {
-            conflict_type: [(x.pootle_path, x.fs_path) for x in conflict]}
-    _test_status(plugin, outcome)
+def test_plugin_add(fs_plugin_suite, add_translations):
+    run_add_test(fs_plugin_suite, **add_translations)
 
 
-########
-# TODO:
-#
-
+# Parametrized PULL
 @pytest.mark.django
-def test_plugin_find_translations(fs_plugin_pulled, expected_fs_stores):
-    plugin = fs_plugin_pulled
-    assert plugin.status().has_changed is False
-    # test that Store objects have been created/updated
+def test_plugin_pull_translations(fs_plugin_suite, pull_translations):
+    run_pull_test(fs_plugin_suite, **pull_translations)
 
 
+# Parametrized PUSH
 @pytest.mark.django
-def test_plugin_add_translations_path(fs_plugin_pulled):
-    plugin = fs_plugin_pulled
-    _setup_store(plugin, "subdir1/example5.po")
-    plugin.add_translations(
-        pootle_path="/en/tutorial/subdir1/*", fs_path="foo/nbar")
-
-
-@pytest.mark.django
-def test_plugin_push_translations_path(fs_plugin_pulled):
-    plugin = fs_plugin_pulled
-
-    plugin.add_translations()
-    plugin.push_translations(fs_path='/gnu_style/*')
-
-
-@pytest.mark.django
-def test_plugin_fetch_translations_path(fs_plugin_pulled):
-    plugin = fs_plugin_pulled
-    plugin.fetch_translations(
-        pootle_path="/en/tutorial/subdir1/*", fs_path="foo/nbar")
-
-
-@pytest.mark.django
-def test_plugin_pull_translations_path(fs_plugin_pulled):
-    plugin = fs_plugin_pulled
-    _edit_file(plugin, "gnu_style/po/en.po")
-    plugin.fetch_translations(force=True)
-    plugin.pull_translations(
-        pootle_path="/en/tutorial/subdir1/*", fs_path="foo/nbar")
-
-
-# Parametrized PATH_FILTERS
-@pytest.mark.django
-def test_plugin_fetch_paths(fs_fetch_paths):
-    plugin, path, outcome = fs_fetch_paths
-    plugin.fetch_translations(**path)
-    status = plugin.status()
-    assert outcome == {k: len(status[k]) for k in status}
+def test_plugin_push_translations(fs_plugin_suite, push_translations):
+    run_push_test(fs_plugin_suite, **push_translations)

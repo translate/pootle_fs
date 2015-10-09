@@ -11,6 +11,11 @@ STATUS_TYPES = [
     "fs_ahead", "fs_added", "fs_untracked", "fs_removed",
     "conflict", "conflict_untracked"]
 
+PO_CONFIG = """
+[default]
+translation_path = po/<lang>.po
+"""
+
 
 def _require_language(code, fullname, plurals=2, plural_equation='(n != 1)'):
     """Helper to get/create a new language."""
@@ -98,7 +103,7 @@ def _require_user(username, fullname, password=None, is_superuser=False):
     return user
 
 
-def _register_plugin(name="example", plugin=None, clear=True, src=EXAMPLE_FS):
+def _register_plugin(name="example", plugin=None, clear=True):
     if clear:
         _clear_plugins()
 
@@ -119,21 +124,21 @@ def _register_plugin(name="example", plugin=None, clear=True, src=EXAMPLE_FS):
         def get_latest_hash(self):
             return md5(str(datetime.now())).hexdigest()
 
+        def push(self):
+            if os.path.exists(self.fs.url):
+                shutil.rmtree(self.fs.url)
+            shutil.copytree(
+                self.local_fs_path,
+                self.fs.url)
+
         def pull(self):
-            dir_path = self.local_fs_path
-            if not self._pulled:
-                if os.path.exists(dir_path):
-                    shutil.rmtree(dir_path)
-                shutil.copytree(
-                    os.path.abspath(
-                        os.path.join(
-                            __file__,
-                            self.src)),
-                    os.path.abspath(dir_path))
-            self._pulled = True
+            if os.path.exists(self.local_fs_path):
+                shutil.rmtree(self.local_fs_path)
+            shutil.copytree(
+                self.fs.url,
+                self.local_fs_path)
 
     ExamplePlugin.name = name
-    ExamplePlugin.src = os.path.abspath(src)
     plugins.register(plugin or ExamplePlugin)
     return ExamplePlugin
 
@@ -154,19 +159,26 @@ def _fake_pull(dir_path, src=EXAMPLE_FS):
         os.path.abspath(dir_path))
 
 
-po_config = """
-[default]
-translation_path = po/<lang>.po
-"""
-
-
-def _create_conflict(plugin):
-    _setup_store(
+def _create_conflict(plugin, path=None, edit_file=None):
+    _ef = edit_file or _edit_file
+    from pootle_fs.models import StoreFS
+    if path is not None:
+        store_fs = StoreFS.objects.get(
+            pootle_path=path)
+        pootle_path = store_fs.pootle_path
+        fs_path = store_fs.file.file_path
+        _update_store(
+            plugin,
+            pootle_path=pootle_path)
+    else:
+        pootle_path = "/en/tutorial/subdir3/subsubdir/example5.po"
+        fs_path = "/non_gnu_style/locales/en/subsubdir/example5.po"
+        _setup_store(
+            plugin,
+            path=pootle_path)
+    _ef(
         plugin,
-        path="subdir3/subsubdir/example5.po")
-    _edit_file(
-        plugin,
-        "non_gnu_style/locales/en/subsubdir/example5.po")
+        fs_path)
 
 
 def _test_status(plugin, expected):
@@ -184,7 +196,7 @@ def _test_status(plugin, expected):
 
 
 def _edit_file(plugin, filepath):
-    po_file = (os.path.join(plugin.local_fs_path, filepath))
+    po_file = (os.path.join(plugin.fs.url, filepath.strip("/")))
     dir_name = os.path.dirname(po_file)
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
@@ -194,7 +206,7 @@ def _edit_file(plugin, filepath):
 
 def _remove_file(plugin, path):
     # remove the file from FS
-    os.unlink(os.path.join(plugin.local_fs_path, path))
+    os.unlink(os.path.join(plugin.fs.url, path.strip("/")))
 
 
 def _update_store(plugin=None, pootle_path=None):
@@ -235,17 +247,17 @@ def _setup_dir(dir_path, makepo=True):
         with open(os.path.join(po_path, "en.po"), "w") as f:
             f.write(" ")
     with open(os.path.join(src, ".pootle.ini"), "w") as f:
-        f.write(po_config)
+        f.write(PO_CONFIG)
     return src
 
 
-def _setup_store(tutorial_fs, path="en.po"):
+def _setup_store(plugin, path="/en/tutorial/en.po"):
     from pootle_store.models import Store
-    tp = tutorial_fs.project.translationproject_set.get(
+    tp = plugin.project.translationproject_set.get(
         language__code="en")
     parts = path.strip("/").split("/")
     directory = tp.directory
-    for part in parts[:-1]:
+    for part in parts[2:-1]:
         directory = directory.child_dirs.get(name=part)
     store = Store.objects.create(
         translation_project=tp, parent=directory, name=parts[-1])
@@ -263,3 +275,33 @@ def _setup_export_dir(dir_path, settings):
     if os.path.exists(export_dir):
         shutil.rmtree(export_dir)
     settings.CACHES['exports']['LOCATION'] = export_dir
+
+
+def create_test_suite(plugin, edit_file=None, remove_file=None):
+    plugin.fetch_translations()
+    plugin.pull_translations()
+    _ef = edit_file or _edit_file
+    _ef(plugin, "non_gnu_style/locales/en/foo/bar/baz.po")
+    _ef(plugin, "gnu_style_named_folders/po-example10/en.po")
+    _ef(plugin, "gnu_style/po/zu.po")
+    _rf = remove_file or _remove_file
+    _rf(plugin, "gnu_style/po/en.po")
+    _create_conflict(
+        plugin,
+        edit_file=edit_file)
+    _create_conflict(
+        plugin, "/zu/tutorial/subdir3/subsubdir/example4.po",
+        edit_file=edit_file)
+    _update_store(plugin, "/en/tutorial/subdir2/example2.po")
+    _setup_store(plugin, "/en/tutorial/subdir2/example11.po")
+    _remove_store(plugin, pootle_path="/en/tutorial/subdir2/example1.po")
+    return plugin
+
+
+def create_plugin(fs_type, fs_plugin):
+    from pootle_fs.models import ProjectFS
+    kwargs = dict(
+        project=fs_plugin[0],
+        fs_type=fs_type,
+        url=fs_plugin[2])
+    return ProjectFS.objects.create(**kwargs).plugin

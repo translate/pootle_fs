@@ -6,7 +6,7 @@ import pytest
 
 from ..utils import (
     _require_language, _require_project, _require_tp, _require_store,
-    _require_user, _register_plugin, _setup_export_dir)
+    _require_user, _register_plugin)
 
 
 @pytest.fixture
@@ -110,12 +110,14 @@ def system(db):
 
 
 @pytest.fixture
-def tutorial_fs(tutorial):
+def tutorial_fs(tutorial, tmpdir):
     from pootle_fs.models import ProjectFS
+    dir_path = str(tmpdir.dirpath())
+    repo_path = os.path.join(dir_path, "__src__")
     return ProjectFS.objects.create(
         project=tutorial,
-        fs_type="example",
-        url=_register_plugin().src)
+        fs_type=_register_plugin().name,
+        url=repo_path)
 
 
 @pytest.fixture
@@ -132,15 +134,3 @@ def delete_pattern():
     """Adds the no-op `delete_pattern()` method to `LocMemCache`."""
     from django.core.cache.backends.locmem import LocMemCache
     LocMemCache.delete_pattern = lambda x, y: 0
-
-
-@pytest.fixture
-def fs_plugin(tutorial_fs, tmpdir, settings, system, english, zulu):
-    plugin = _register_plugin()
-    dir_path = str(tmpdir.dirpath())
-    _setup_export_dir(dir_path, settings)
-    settings.POOTLE_FS_PATH = dir_path
-    tutorial_path = os.path.join(dir_path, tutorial_fs.project.code)
-    if os.path.exists(tutorial_path):
-        shutil.rmtree(tutorial_path)
-    return plugin(tutorial_fs)

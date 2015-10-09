@@ -26,14 +26,14 @@ PLUGIN_STATUS["fs_unmatched"] = (
     lambda plugin: _edit_file(plugin, "foo.po"), {})
 PLUGIN_STATUS["fs_untracked"] = (
     lambda plugin: _edit_file(
-        plugin, "non_gnu_style/locales/en/subsubdir/example5.po"),
+        plugin, "/non_gnu_style/locales/en/subsubdir/example5.po"),
     dict(
         fs_untracked=[
             (u"/en/tutorial/subdir3/subsubdir/example5.po",
              "/non_gnu_style/locales/en/subsubdir/example5.po")]))
 PLUGIN_STATUS["pootle_untracked"] = (
     lambda plugin: _setup_store(
-        plugin, path="subdir3/subsubdir/example5.po"),
+        plugin, path="/en/tutorial/subdir3/subsubdir/example5.po"),
     dict(
         pootle_untracked=[
             (u"/en/tutorial/subdir3/subsubdir/example5.po",
@@ -41,7 +41,7 @@ PLUGIN_STATUS["pootle_untracked"] = (
 PLUGIN_STATUS["fs_added"] = (
     lambda plugin: (
         _edit_file(
-            plugin, "non_gnu_style/locales/en/subsubdir/example5.po"),
+            plugin, "/non_gnu_style/locales/en/subsubdir/example5.po"),
         plugin.fetch_translations()),
     dict(
         fs_added=[
@@ -49,7 +49,9 @@ PLUGIN_STATUS["fs_added"] = (
              "/non_gnu_style/locales/en/subsubdir/example5.po")]))
 PLUGIN_STATUS["pootle_added"] = (
     lambda plugin: (
-        _setup_store(plugin, path="subdir3/subsubdir/example5.po"),
+        _setup_store(
+            plugin,
+            path="/en/tutorial/subdir3/subsubdir/example5.po"),
         plugin.add_translations()),
     dict(
         pootle_added=[
@@ -58,7 +60,7 @@ PLUGIN_STATUS["pootle_added"] = (
 PLUGIN_STATUS["fs_ahead"] = (
     lambda plugin: (
         _edit_file(
-            plugin, "non_gnu_style/locales/en/subsubdir/example4.po"),
+            plugin, "/non_gnu_style/locales/en/subsubdir/example4.po"),
         plugin.fetch_translations()),
     dict(
         fs_ahead=[
@@ -92,7 +94,7 @@ PLUGIN_STATUS["conflict"] = (
         _update_store(
             pootle_path="/en/tutorial/subdir3/subsubdir/example4.po"),
         _edit_file(
-            plugin, "non_gnu_style/locales/en/subsubdir/example4.po")),
+            plugin, "/non_gnu_style/locales/en/subsubdir/example4.po")),
     dict(
         conflict=[
             (u"/en/tutorial/subdir3/subsubdir/example4.po",
