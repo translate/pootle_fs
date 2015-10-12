@@ -7,10 +7,10 @@ from django.utils.lru_cache import lru_cache
 
 PATH_MAPPING = (
     (".", "\."),
-    ("<lang>", "(?P<lang>[\w]*)"),
-    ("<filename>", "(?P<filename>[\w]*)"),
+    ("<lang>", "(?P<lang>[\w\-\.]*)"),
+    ("<filename>", "(?P<filename>[\w\-\.]*)"),
     ("/<directory_path>/", "/<directory_path>"),
-    ("<directory_path>", "(?P<directory_path>[\w\/]*?)"))
+    ("<directory_path>", "(?P<directory_path>[\w\/\-]*?)"))
 
 
 class TranslationFileFinder(object):
