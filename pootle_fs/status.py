@@ -242,7 +242,7 @@ class ProjectFSStatus(object):
 
     @cached_property
     def fs_translations(self):
-        return [t for t in self.fs.find_translations()]
+        return sorted([t for t in self.fs.find_translations()])
 
     @cached_property
     def addable_translations(self):
