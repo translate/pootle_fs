@@ -184,6 +184,7 @@ class Plugin(object):
 
             finder = self.get_finder(
                 config.get(section, "translation_path"))
+            missing_langs = set()
             for file_path, matched in finder.find():
                 path = file_path.replace(self.local_fs_path, "")
                 if fs_path is not None:
@@ -193,9 +194,7 @@ class Plugin(object):
                 try:
                     language = Language.objects.get(code=lang_code)
                 except Language.DoesNotExist:
-                    logger.warning(
-                        "Language does not exist for %s: %s"
-                        % (self.fs, lang_code))
+                    missing_langs.add(lang_code)
                     continue
                 subdirs = (
                     section_subdirs
@@ -211,6 +210,10 @@ class Plugin(object):
                     if not fnmatch(_pootle_path, pootle_path):
                         continue
                 yield _pootle_path, path
+            if missing_langs:
+                logger.warning(
+                    "Could not import files for languages: %s"
+                    % (", ".join(missing_langs)))
 
     @lru_cache(maxsize=None)
     def get_fs_path(self, pootle_path):
