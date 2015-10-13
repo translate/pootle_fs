@@ -131,9 +131,11 @@ class FSFile(object):
             logger.debug(
                 "Created translation project: %s/%s"
                 % (self.project.code, self.language.code))
-            TranslationProject.objects.create(
+            tp = TranslationProject.objects.create(
                 project=self.project,
                 language=self.language)
+            tp.directory.obsolete = False
+            tp.directory.save()
         if not self.directory:
             directory = self.translation_project.directory
             if self.directory_path:
