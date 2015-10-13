@@ -1,0 +1,1 @@
+-e git+https://github.com/phlax/pootle@no_mtime#egg=pootle

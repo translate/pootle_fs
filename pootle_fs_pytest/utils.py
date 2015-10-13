@@ -68,7 +68,6 @@ def _require_store(tp, po_dir, name):
     try:
         store = Store.objects.get(
             pootle_path=pootle_path,
-            translation_project=tp,
         )
     except Store.DoesNotExist:
         store = Store.objects.create(
@@ -124,7 +123,7 @@ def _register_plugin(name="example", plugin=None, clear=True):
         def get_latest_hash(self):
             return md5(str(datetime.now())).hexdigest()
 
-        def push(self):
+        def push(self, paths=None, msg=None):
             if os.path.exists(self.fs.url):
                 shutil.rmtree(self.fs.url)
             shutil.copytree(
@@ -167,15 +166,11 @@ def _create_conflict(plugin, path=None, edit_file=None):
             pootle_path=path)
         pootle_path = store_fs.pootle_path
         fs_path = store_fs.file.file_path
-        _update_store(
-            plugin,
-            pootle_path=pootle_path)
+        _update_store(pootle_path)
     else:
         pootle_path = "/en/tutorial/subdir3/subsubdir/example5.po"
         fs_path = "/non_gnu_style/locales/en/subsubdir/example5.po"
-        _setup_store(
-            plugin,
-            path=pootle_path)
+        _setup_store(pootle_path)
     _ef(
         plugin,
         fs_path)
@@ -209,30 +204,30 @@ def _remove_file(plugin, path):
     os.unlink(os.path.join(plugin.fs.url, path.strip("/")))
 
 
-def _update_store(plugin=None, pootle_path=None):
+def _update_store(pootle_path):
+    from django.contrib.auth import get_user_model
+
     from pootle_store.models import Unit, Store
-    if pootle_path:
-        store = Store.objects.get(pootle_path=pootle_path)
-    else:
-        # Update the store revision
-        store = plugin.stores.first()
+
+    User = get_user_model()
+
+    store = Store.objects.get(pootle_path=pootle_path)
+    revision = store.get_max_unit_revision() or 1
+    index = store.max_index() + 1
     unit = Unit.objects.create(
         unitid="Foo",
         source="Foo",
         store=store,
-        index=0,
-        revision=store.get_max_unit_revision() or 1)
+        index=index,
+        revision=revision)
     unit.target = "Bar"
     unit.save()
+    store.addunit(unit, revision=revision, user=User.objects.get_system_user())
 
 
-def _remove_store(plugin=None, pootle_path=None):
+def _remove_store(pootle_path):
     from pootle_store.models import Store
-    if pootle_path:
-        store = Store.objects.get(pootle_path=pootle_path)
-    else:
-        # Update the store revision
-        store = plugin.stores.first()
+    store = Store.objects.get(pootle_path=pootle_path)
     # Remove the store
     store.delete()
 
@@ -251,11 +246,13 @@ def _setup_dir(dir_path, makepo=True):
     return src
 
 
-def _setup_store(plugin, path="/en/tutorial/en.po"):
+def _setup_store(pootle_path):
     from pootle_store.models import Store
-    tp = plugin.project.translationproject_set.get(
-        language__code="en")
-    parts = path.strip("/").split("/")
+    from pootle_translationproject.models import TranslationProject
+
+    parts = pootle_path.strip("/").split("/")
+    tp = TranslationProject.objects.get(
+        language__code=parts[0], project__code=parts[1])
     directory = tp.directory
     for part in parts[2:-1]:
         directory = directory.child_dirs.get(name=part)
@@ -292,14 +289,16 @@ def create_test_suite(plugin, edit_file=None, remove_file=None):
     _create_conflict(
         plugin, "/zu/tutorial/subdir3/subsubdir/example4.po",
         edit_file=edit_file)
-    _update_store(plugin, "/en/tutorial/subdir2/example2.po")
-    _setup_store(plugin, "/en/tutorial/subdir2/example11.po")
-    _remove_store(plugin, pootle_path="/en/tutorial/subdir2/example1.po")
+    _update_store("/en/tutorial/subdir2/example2.po")
+    _setup_store("/en/tutorial/subdir2/example11.po")
+    _remove_store("/en/tutorial/subdir2/example1.po")
     return plugin
 
 
-def create_plugin(fs_type, fs_plugin):
+def create_plugin(fs_type, fs_plugin, register=True):
     from pootle_fs.models import ProjectFS
+    if register:
+        _register_plugin(fs_type)
     kwargs = dict(
         project=fs_plugin[0],
         fs_type=fs_type,

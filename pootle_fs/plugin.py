@@ -104,6 +104,9 @@ class Plugin(object):
           ``pootle_path``
         """
         from .models import StoreFS
+        if not self.is_cloned:
+            self.pull()
+
         response = ActionResponse(self)
         status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["pootle_untracked"]
@@ -142,6 +145,9 @@ class Plugin(object):
           ``pootle_path``
         """
         from .models import StoreFS
+        if not self.is_cloned:
+            self.pull()
+
         response = ActionResponse(self)
         status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["fs_untracked"]
@@ -276,7 +282,7 @@ class Plugin(object):
         """
         self.read_config.cache_clear()
 
-    def push(self, message=None):
+    def push(self, paths=None, message=None):
         """
         Push the FS to an external source if required.
         """
@@ -292,7 +298,7 @@ class Plugin(object):
                 fs_file.on_sync(
                     fs_file.latest_hash,
                     action_status.store_fs.store.get_max_unit_revision())
-        self.push()
+        self.push(response)
         return response
 
     def push_translation_files(self, prune=False, pootle_path=None,

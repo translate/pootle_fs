@@ -13,8 +13,7 @@ import shutil
 
 import pytest
 
-from pootle_fs_pytest.utils import (
-    create_test_suite, create_plugin, _register_plugin)
+from pootle_fs_pytest.utils import create_test_suite, create_plugin
 
 
 _plugin_fetch_base = {
@@ -116,22 +115,14 @@ def fs_plugin(fs_plugin_base):
     tutorial, src_path, repo_path, dir_path = fs_plugin_base
     if os.path.exists(repo_path):
         shutil.rmtree(repo_path)
-    os.makedirs(repo_path)
-    for f in os.listdir(src_path):
-        src = os.path.join(src_path, f)
-        target = os.path.join(repo_path, f)
-        if os.path.isdir(src):
-            shutil.copytree(src, target)
-        else:
-            shutil.copyfile(src, target)
-    _register_plugin("example")
-    plugin = create_plugin("example", fs_plugin_base)
-    return plugin
+    shutil.copytree(src_path, repo_path)
+    return create_plugin("example", fs_plugin_base)
 
 
 @pytest.fixture
 def fs_plugin_base(tutorial, tmpdir, settings, system, english, zulu):
     import pootle_fs_pytest
+
     dir_path = str(tmpdir.dirpath())
     repo_path = os.path.join(dir_path, "__src__")
     src_path = os.path.abspath(
@@ -142,6 +133,8 @@ def fs_plugin_base(tutorial, tmpdir, settings, system, english, zulu):
     tutorial_path = os.path.join(dir_path, tutorial.code)
     if os.path.exists(tutorial_path):
         shutil.rmtree(tutorial_path)
+    if os.path.exists(repo_path):
+        shutil.rmtree(repo_path)
     return tutorial, src_path, repo_path, dir_path
 
 

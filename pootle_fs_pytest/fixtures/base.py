@@ -99,8 +99,9 @@ def en_tutorial_po(settings, english_tutorial, system):
 @pytest.fixture
 def en_tutorial_fs_po(settings, english_tutorial_fs, system):
     """Require the /en/tutorial/tutorial.po store."""
-    return _require_store(english_tutorial_fs,
-                          settings.POOTLE_TRANSLATION_DIRECTORY, 'tutorial.po')
+    return _require_store(
+        english_tutorial_fs,
+        settings.POOTLE_TRANSLATION_DIRECTORY, 'tutorial_fs.po')
 
 
 @pytest.fixture
