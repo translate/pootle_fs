@@ -120,10 +120,14 @@ class Status(object):
 
 class ActionStatus(Status):
 
-    def __init__(self, success, action, original_status, msg=None):
-        self.action = action
-        self.success = success
+    def __init__(self, action_type, original_status, complete=True, msg=None):
+        self.action_type = action_type
+        self.complete = complete
         self.original_status = original_status
+
+    @property
+    def failed(self):
+        return not self.complete
 
     @property
     def store_fs(self):
@@ -161,47 +165,55 @@ class ActionResponse(object):
 
     def __init__(self, plugin):
         self.plugin = plugin
-        self.__actions__ = dict(success={}, failed={})
+        self.__actions__ = {}
         for k in FS_ACTION.keys():
-            self.__actions__['success'][k] = []
-            self.__actions__['failed'][k] = []
+            self.__actions__[k] = []
+            self.__actions__[k] = []
 
     def __iter__(self):
-        for k in self.__actions__['success']:
-            if self.__actions__['success'][k]:
+        for k in self.__actions__:
+            if self.__actions__[k]:
                 yield k
 
     def __getitem__(self, k):
-        return self.__actions__['success'][k]
+        return self.__actions__[k]
 
     def __len__(self):
         return len([x for x in self.__iter__()])
 
     @property
-    def success(self):
-        for k in self:
-            for action in self.__actions__['success'][k]:
-                yield action
+    def has_failed(self):
+        return len(list(self.failed())) and True or False
+
+    @property
+    def action_types(self):
+        return FS_ACTION.keys()
 
     @property
     def made_changes(self):
-        return any(x for x in self)
+        for complete in self.completed():
+            return True
+        return False
 
-    @property
-    def errors(self):
-        return self.__actions__['failed']
+    def completed(self, *action_types):
+        action_types = action_types or self.action_types
+        for action_type in action_types:
+            for action in self.__actions__[action_type]:
+                if not action.failed:
+                    yield action
 
-    @property
-    def failed(self):
-        return any(x for x in self.errors)
+    def failed(self, *action_types):
+        action_types = action_types or self.action_types
+        for action_type in action_types:
+            for action in self.__actions__[action_type]:
+                if action.failed:
+                    yield action
 
-    def add(self, success, action, fs_status, msg=None):
-        if success:
-            self.__actions__['success'][action].append(
-                ActionStatus(success, action, fs_status, msg))
-        else:
-            self.__actions__['failed'][action].append(
-                ActionStatus(success, action, fs_status, msg))
+    def add(self, action_type, fs_status, complete=True, msg=None):
+        action = ActionStatus(
+            action_type, fs_status, complete=complete, msg=msg)
+        self.__actions__[action_type].append(action)
+        return action
 
     def get_action_type(self, action_type):
         return FS_ACTION[action_type]
@@ -211,7 +223,7 @@ class ActionResponse(object):
         return (
             "%s (%s)"
             % (st_type['title'],
-               len(self.__actions__['success'][action_type])))
+               len(list(self.completed()))))
 
     def get_action_description(self, action_type, failures=False):
         return self.get_action_type(action_type)["description"]

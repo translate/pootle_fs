@@ -81,6 +81,21 @@ def _run_add_test(plugin, **kwargs):
                 assert original_status.store == expected_status.store
 
 
+def _check_fs(plugin, response):
+    pushed = [
+        os.path.join(plugin.fs.url, p.fs_path.strip("/"))
+        for p in response["pushed_to_fs"]]
+    pruned = [
+        os.path.join(plugin.fs.url, p.fs_path.strip("/"))
+        for p in response["pruned_from_fs"]]
+
+    for p in pushed:
+        assert os.path.exists(p)
+
+    for p in pruned:
+        assert not os.path.exists(p)
+
+
 def _run_push_test(plugin, **kwargs):
     status = plugin.status()
     force = kwargs.get("force", None)
@@ -92,6 +107,9 @@ def _run_push_test(plugin, **kwargs):
     force = kwargs.get("force", False)
     if "force" in kwargs:
         del kwargs["force"]
+    check_fs = kwargs.get("check_fs", _check_fs)
+    if "check_fs" in kwargs:
+        del kwargs["check_fs"]
 
     expected = {}
     expected["pushed_to_fs"] = []
@@ -154,6 +172,8 @@ def _run_push_test(plugin, **kwargs):
                 assert (
                     store_fs.file.latest_hash
                     == store_fs.last_sync_hash)
+
+    check_fs(plugin, response)
 
 
 def _run_pull_test(plugin, **kwargs):

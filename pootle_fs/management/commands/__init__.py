@@ -58,16 +58,21 @@ class TranslationsSubCommand(SubCommand):
             self.handle_actions(action_type)
 
     def handle_actions(self, action_type):
+        failed = self.response.failed(action_type)
         title = self.response.get_action_title(action_type)
-        self.stdout.write(title, self.style.HTTP_INFO)
+        if failed:
+            self.stdout.write(title, self.style.ERROR)
+        else:
+            self.stdout.write(title, self.style.HTTP_INFO)
         self.stdout.write("-" * len(title))
         self.stdout.write(self.response.get_action_description(action_type))
         self.stdout.write("")
-        handler = getattr(self, "handle_%s" % action_type, None)
-        if handler:
-            handler()
-        else:
-            for action in self.response[action_type]:
-                self.stdout.write("  %s" % action.pootle_path)
-                self.stdout.write("   <-->  %s" % action.fs_path)
+        for action in self.response.completed(action_type):
+            self.stdout.write("  %s" % action.pootle_path)
+            self.stdout.write("   <-->  %s" % action.fs_path)
+        for action in failed:
+            self.stdout.write(
+                "  %s" % action.pootle_path, self.style.FS_ERROR)
+            self.stdout.write(
+                "   <-->  %s" % action.fs_path, self.style.FS_ERROR)
         self.stdout.write("")

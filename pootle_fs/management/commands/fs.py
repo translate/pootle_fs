@@ -26,6 +26,8 @@ PALETTES[NOCOLOR_PALETTE]["FS_CONFLICT"] = {}
 PALETTES["light"]["FS_CONFLICT"] = {'fg': 'red', 'opts': ('bold',)}
 PALETTES[NOCOLOR_PALETTE]["FS_REMOVED"] = {}
 PALETTES["light"]["FS_REMOVED"] = {'fg': 'red'}
+PALETTES[NOCOLOR_PALETTE]["FS_ERROR"] = {}
+PALETTES["light"]["FS_ERROR"] = {'fg': 'red', 'opts': ('bold',)}
 
 
 # This must be run before importing Django.
