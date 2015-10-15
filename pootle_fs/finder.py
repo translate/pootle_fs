@@ -74,12 +74,6 @@ class TranslationFileFinder(object):
                 local_path.replace("//", "/").lstrip("/"))
         return path
 
-    def _parse_path(self):
-        path = self.translation_path
-        for k, v in self.path_mapping:
-            path = path.replace(k, v)
-        return "%s$" % path
-
     def validate_path(self):
         path = self.translation_path
         links_to_parent = (
@@ -109,3 +103,9 @@ class TranslationFileFinder(object):
             raise ValueError(
                 "Translation paths can only contain alpha-numeric characters, "
                 "_ or -: '%s'" % path)
+
+    def _parse_path(self):
+        path = self.translation_path
+        for k, v in self.path_mapping:
+            path = path.replace(k, v)
+        return "%s$" % path

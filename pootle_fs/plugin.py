@@ -40,6 +40,15 @@ class Plugin(object):
                 yield store, fs_path
 
     @property
+    def conflicting_translations(self):
+        unresolved = self.synced_translations.filter(
+            resolve_conflict__isnull=True)
+        for translation in unresolved:
+            fs_file = translation.file
+            if fs_file.fs_changed and fs_file.pootle_changed:
+                yield translation
+
+    @property
     def is_cloned(self):
         if os.path.exists(self.local_fs_path):
             return True
@@ -60,6 +69,11 @@ class Plugin(object):
             translation_project__project=self.project)
 
     @property
+    def synced_translations(self):
+        return (self.translations.exclude(last_sync_revision__isnull=True)
+                                 .exclude(last_sync_hash__isnull=True))
+
+    @property
     def translations(self):
         from .models import StoreFS
         return StoreFS.objects.filter(project=self.project)
@@ -68,27 +82,6 @@ class Plugin(object):
     def unsynced_translations(self):
         return (self.translations.filter(last_sync_revision__isnull=True)
                                  .filter(last_sync_hash__isnull=True))
-
-    @property
-    def synced_translations(self):
-        return (self.translations.exclude(last_sync_revision__isnull=True)
-                                 .exclude(last_sync_hash__isnull=True))
-
-    @property
-    def conflicting_translations(self):
-        unresolved = self.synced_translations.filter(
-            resolve_conflict__isnull=True)
-        for translation in unresolved:
-            fs_file = translation.file
-            if fs_file.fs_changed and fs_file.pootle_changed:
-                yield translation
-
-    @lru_cache(maxsize=None)
-    def get_finder(self, translation_path):
-        return self.finder_class(
-            os.path.join(
-                self.local_fs_path,
-                translation_path))
 
     def add_translations(self, force=False, pootle_path=None, fs_path=None):
         """
@@ -222,6 +215,13 @@ class Plugin(object):
                     % (", ".join(missing_langs)))
 
     @lru_cache(maxsize=None)
+    def get_finder(self, translation_path):
+        return self.finder_class(
+            os.path.join(
+                self.local_fs_path,
+                translation_path))
+
+    @lru_cache(maxsize=None)
     def get_fs_path(self, pootle_path):
         """
         Reverse match an FS filepath from a ``Store`` using the project config.
@@ -253,6 +253,12 @@ class Plugin(object):
         if fs_path:
             return "/%s" % fs_path.lstrip("/")
 
+    def pull(self):
+        """
+        Pull the FS from external source if required.
+        """
+        self.read_config.cache_clear()
+
     def pull_translations(self, prune=False, pootle_path=None, fs_path=None):
         """
         :param prune: Remove files that do not exist in the FS.
@@ -275,12 +281,6 @@ class Plugin(object):
                 Store.objects.get(
                     pootle_path=fs_status.pootle_path).delete()
         return response
-
-    def pull(self):
-        """
-        Pull the FS from external source if required.
-        """
-        self.read_config.cache_clear()
 
     def push(self, paths=None, message=None):
         """
@@ -330,11 +330,6 @@ class Plugin(object):
             content = f.read()
         return content
 
-    def remove_file(self, path):
-        os.unlink(
-            os.path.join(
-                self.local_fs_path, path.strip("/")))
-
     @lru_cache(maxsize=None)
     def read_config(self):
         """
@@ -356,17 +351,22 @@ class Plugin(object):
         return self.status_class(
             self, fs_path=fs_path, pootle_path=pootle_path)
 
+    def remove_file(self, path):
+        os.unlink(
+            os.path.join(
+                self.local_fs_path, path.strip("/")))
+
 
 class Plugins(object):
 
     def __init__(self):
         self.__plugins__ = {}
 
-    def register(self, plugin):
-        self.__plugins__[plugin.name] = plugin
-
     def __getitem__(self, k):
         return self.__plugins__[k]
 
     def __contains__(self, k):
         return k in self.__plugins__
+
+    def register(self, plugin):
+        self.__plugins__[plugin.name] = plugin

@@ -60,14 +60,51 @@ logger = logging.getLogger('pootle.fs')
 class Command(BaseCommand):
     help = "Pootle FS."
     subcommands = {
-        "set_fs": SetFSCommand,
-        "info": ProjectInfoCommand,
-        "files": FilesCommand,
-        "status": StatusCommand,
         "add_translations": AddTranslationsCommand,
-        "push_translations": PushTranslationsCommand,
+        "info": ProjectInfoCommand,
         "fetch_translations": FetchTranslationsCommand,
-        "pull_translations": PullTranslationsCommand}
+        "files": FilesCommand,
+        "set_fs": SetFSCommand,
+        "status": StatusCommand,
+        "pull_translations": PullTranslationsCommand,
+        "push_translations": PushTranslationsCommand}
+
+    def execute(self, *args, **kwargs):
+        if args:
+            project_code = args[0]
+            args = args[1:]
+            if project_code and not args:
+                args = ["info"]
+            try:
+                Project.objects.get(code=project_code)
+            except Project.DoesNotExist:
+                raise CommandError("Unrecognised project: %s" % project_code)
+            if args:
+                subcommand = args[0]
+                try:
+                    subcommand = self.subcommands[subcommand]()
+                except KeyError:
+                    raise CommandError(
+                        "Unrecognised command: %s" % subcommand)
+                defaults = {}
+                for opt in subcommand.option_list:
+                    if opt.default is NO_DEFAULT:
+                        defaults[opt.dest] = None
+                    else:
+                        defaults[opt.dest] = opt.default
+                        defaults.update(kwargs)
+                return subcommand.execute(
+                    project_code, *(args or ['info']), **defaults)
+        return super(Command, self).execute(*args, **kwargs)
+
+    def handle(self, *args, **kwargs):
+        for project in Project.objects.all():
+            try:
+                self.stdout.write(
+                    "%s\t%s"
+                    % (project.code, project.fs.get().url))
+            except ProjectFS.DoesNotExist:
+                pass
 
     def run_from_argv(self, argv):
         """
@@ -115,40 +152,3 @@ class Command(BaseCommand):
                 self, 'stderr', OutputWrapper(sys.stderr, self.style.ERROR))
             stderr.write('%s: %s' % (e.__class__.__name__, e))
             sys.exit(1)
-
-    def execute(self, *args, **kwargs):
-        if args:
-            project_code = args[0]
-            args = args[1:]
-            if project_code and not args:
-                args = ["info"]
-            try:
-                Project.objects.get(code=project_code)
-            except Project.DoesNotExist:
-                raise CommandError("Unrecognised project: %s" % project_code)
-            if args:
-                subcommand = args[0]
-                try:
-                    subcommand = self.subcommands[subcommand]()
-                except KeyError:
-                    raise CommandError(
-                        "Unrecognised command: %s" % subcommand)
-                defaults = {}
-                for opt in subcommand.option_list:
-                    if opt.default is NO_DEFAULT:
-                        defaults[opt.dest] = None
-                    else:
-                        defaults[opt.dest] = opt.default
-                        defaults.update(kwargs)
-                return subcommand.execute(
-                    project_code, *(args or ['info']), **defaults)
-        return super(Command, self).execute(*args, **kwargs)
-
-    def handle(self, *args, **kwargs):
-        for project in Project.objects.all():
-            try:
-                self.stdout.write(
-                    "%s\t%s"
-                    % (project.code, project.fs.get().url))
-            except ProjectFS.DoesNotExist:
-                pass

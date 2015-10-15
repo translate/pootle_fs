@@ -35,48 +35,6 @@ class FSFile(object):
             self.__name__, self.pootle_path, self.path)
 
     @property
-    def file_path(self):
-        return os.path.join(
-            self.fs.plugin.local_fs_path,
-            self.path.strip("/"))
-
-    @property
-    def exists(self):
-        return os.path.exists(self.file_path)
-
-    @property
-    def filename(self):
-        return self.pootle_path.split("/")[-1]
-
-    @cached_property
-    def fs(self):
-        return self.project.fs.get()
-
-    @property
-    def project(self):
-        return self.fs_store.project
-
-    @cached_property
-    def language(self):
-        if self.fs_store.store:
-            return self.fs_store.store.translation_project.language
-        return Language.objects.get(code=self.pootle_path.split("/")[1])
-
-    @property
-    def translation_project(self):
-        if self.fs_store.store:
-            return self.fs_store.store.translation_project
-        try:
-            return self.project.translationproject_set.get(
-                language=self.language)
-        except TranslationProject.DoesNotExist:
-            return
-
-    @property
-    def directory_path(self):
-        return '/'.join(self.pootle_path.split("/")[3:-1])
-
-    @property
     def directory(self):
         if self.fs_store.store:
             return self.fs_store.store.parent
@@ -92,14 +50,26 @@ class FSFile(object):
         return directory
 
     @property
-    def store(self):
-        if self.fs_store.store:
-            return self.fs_store.store
-        try:
-            return Store.objects.get(
-                pootle_path=self.pootle_path)
-        except Store.DoesNotExist:
-            return
+    def directory_path(self):
+        return '/'.join(self.pootle_path.split("/")[3:-1])
+
+    @property
+    def exists(self):
+        return os.path.exists(self.file_path)
+
+    @property
+    def filename(self):
+        return self.pootle_path.split("/")[-1]
+
+    @property
+    def file_path(self):
+        return os.path.join(
+            self.fs.plugin.local_fs_path,
+            self.path.strip("/"))
+
+    @cached_property
+    def fs(self):
+        return self.project.fs.get()
 
     @property
     def fs_changed(self):
@@ -110,6 +80,40 @@ class FSFile(object):
                 latest_hash
                 != self.fs_store.last_sync_hash))
 
+    @cached_property
+    def language(self):
+        if self.fs_store.store:
+            return self.fs_store.store.translation_project.language
+        return Language.objects.get(code=self.pootle_path.split("/")[1])
+
+    @property
+    def latest_hash(self):
+        raise NotImplementedError
+
+    @property
+    def project(self):
+        return self.fs_store.project
+
+    @property
+    def store(self):
+        if self.fs_store.store:
+            return self.fs_store.store
+        try:
+            return Store.objects.get(
+                pootle_path=self.pootle_path)
+        except Store.DoesNotExist:
+            return
+
+    @property
+    def translation_project(self):
+        if self.fs_store.store:
+            return self.fs_store.store.translation_project
+        try:
+            return self.project.translationproject_set.get(
+                language=self.language)
+        except TranslationProject.DoesNotExist:
+            return
+
     @property
     def pootle_changed(self):
         return (
@@ -118,9 +122,10 @@ class FSFile(object):
                 self.store.get_max_unit_revision()
                 != self.fs_store.last_sync_revision))
 
-    @property
-    def latest_hash(self):
-        raise NotImplementedError
+    def add(self):
+        logger.debug("Adding file: %s" % self.path)
+        self.fs_store.resolve_conflict = POOTLE_WINS
+        self.fs_store.save()
 
     def create_store(self):
         """
@@ -156,11 +161,6 @@ class FSFile(object):
             self.fs_store.store = self.store
             self.fs_store.save()
 
-    def add(self):
-        logger.debug("Adding file: %s" % self.path)
-        self.fs_store.resolve_conflict = POOTLE_WINS
-        self.fs_store.save()
-
     def delete(self):
         """
         Delete the file from FS and Pootle
@@ -172,10 +172,6 @@ class FSFile(object):
             store.delete()
         self.fs_store.delete()
         self.remove_file()
-
-    def remove_file(self):
-        if self.exists:
-            os.unlink(self.file_path)
 
     def fetch(self):
         """
@@ -197,29 +193,6 @@ class FSFile(object):
         self.fs_store.last_sync_revision = revision
         self.fs_store.save()
         logger.debug("File synced: %s" % self.path)
-
-    def sync_to_pootle(self):
-        """
-        Update Pootle ``Store`` with the parsed FS file.
-        """
-        with open(self.file_path) as f:
-            self.store.update(
-                overwrite=True,
-                store=getclass(f)(f.read()),
-                submission_type=SubmissionTypes.UPLOAD)
-        logger.debug("Pulled file: %s" % self.path)
-        self.on_sync(
-            self.latest_hash,
-            self.store.get_max_unit_revision())
-
-    def sync_from_pootle(self):
-        """
-        Update FS file with the serialized content from Pootle ```Store```
-        """
-
-        with open(self.file_path, "w") as f:
-            f.write(self.store.serialize())
-        logger.debug("Pushed file: %s" % self.path)
 
     def pull(self):
         """
@@ -252,3 +225,30 @@ class FSFile(object):
     def read(self):
         with open(self.file_path) as f:
             return f.read()
+
+    def remove_file(self):
+        if self.exists:
+            os.unlink(self.file_path)
+
+    def sync_from_pootle(self):
+        """
+        Update FS file with the serialized content from Pootle ```Store```
+        """
+
+        with open(self.file_path, "w") as f:
+            f.write(self.store.serialize())
+        logger.debug("Pushed file: %s" % self.path)
+
+    def sync_to_pootle(self):
+        """
+        Update Pootle ``Store`` with the parsed FS file.
+        """
+        with open(self.file_path) as f:
+            self.store.update(
+                overwrite=True,
+                store=getclass(f)(f.read()),
+                submission_type=SubmissionTypes.UPLOAD)
+        logger.debug("Pulled file: %s" % self.path)
+        self.on_sync(
+            self.latest_hash,
+            self.store.get_max_unit_revision())

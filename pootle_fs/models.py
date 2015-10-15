@@ -35,12 +35,12 @@ class StoreFS(models.Model):
     objects = StoreFSManager()
 
     @cached_property
-    def fs(self):
-        return self.project.fs.get()
-
-    @cached_property
     def file(self):
         return self.fs.fs_file(self)
+
+    @cached_property
+    def fs(self):
+        return self.project.fs.get()
 
     def save(self, *args, **kwargs):
         validated = validate_store_fs(
@@ -67,11 +67,6 @@ class ProjectFS(models.Model):
 
     objects = ProjectFSManager()
 
-    def save(self, *args, **kwargs):
-        validate_project_fs(
-            fs_type=self.fs_type)
-        return super(ProjectFS, self).save(*args, **kwargs)
-
     @cached_property
     def plugin(self):
         from pootle_fs import plugins
@@ -80,9 +75,6 @@ class ProjectFS(models.Model):
         except KeyError:
             raise MissingPluginError(
                 "No such plugin: %s" % self.fs_type)
-
-    ###########################
-    # FS Plugin implementation
 
     def add_translations(self, force=False, fs_path=None, pootle_path=None):
         return self.plugin.add_translations(
@@ -115,9 +107,11 @@ class ProjectFS(models.Model):
     def read_config(self):
         return self.plugin.read_config()
 
+    def save(self, *args, **kwargs):
+        validate_project_fs(
+            fs_type=self.fs_type)
+        return super(ProjectFS, self).save(*args, **kwargs)
+
     def status(self, fs_path=None, pootle_path=None):
         return self.plugin.status(
             fs_path=fs_path, pootle_path=pootle_path)
-
-    # FS Plugin implementation
-    ###########################
