@@ -6,13 +6,14 @@ import os
 import shutil
 
 from django.conf import settings
+from django.utils.functional import cached_property
 from django.utils.lru_cache import lru_cache
 
-from pootle_language.models import Language
 from pootle_store.models import Store
 
 from .files import FSFile
 from .finder import TranslationFileFinder
+from .language import LanguageMapper
 from .status import ProjectFSStatus, ActionResponse
 
 
@@ -22,8 +23,9 @@ logger = logging.getLogger(__name__)
 class Plugin(object):
     name = None
     file_class = FSFile
-    status_class = ProjectFSStatus
     finder_class = TranslationFileFinder
+    language_mapper_class = LanguageMapper
+    status_class = ProjectFSStatus
 
     def __init__(self, fs):
         from .models import ProjectFS
@@ -53,6 +55,10 @@ class Plugin(object):
         if os.path.exists(self.local_fs_path):
             return True
         return False
+
+    @cached_property
+    def lang_mapper(self):
+        return self.language_mapper_class(self)
 
     @property
     def local_fs_path(self):
@@ -189,11 +195,9 @@ class Plugin(object):
                 if fs_path is not None:
                     if not fnmatch(path, fs_path):
                         continue
-                lang_code = matched['lang']
-                try:
-                    language = Language.objects.get(code=lang_code)
-                except Language.DoesNotExist:
-                    missing_langs.add(lang_code)
+                language = self.lang_mapper.get_lang(matched['lang'])
+                if not language:
+                    missing_langs.add(matched['lang'])
                     continue
                 subdirs = (
                     section_subdirs
