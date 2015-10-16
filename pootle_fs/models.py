@@ -26,6 +26,7 @@ class StoreFS(models.Model):
     last_sync_mtime = models.DateTimeField(null=True, blank=True)
     last_sync_hash = models.CharField(max_length=64, blank=True, null=True)
     staged_for_removal = models.BooleanField(default=False)
+    staged_for_merge = models.BooleanField(default=False)
     resolve_conflict = models.IntegerField(
         blank=True, null=True,
         default=0,

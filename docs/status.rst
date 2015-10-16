@@ -54,6 +54,13 @@ Possible status
   either use ``add_translations --force`` to restore the Pootle version, or to use
   ``rm_translations`` to stage for removal from Pootle.
 
+``merge_fs``
+  Merge Stores/files that have both been updated. If there are conflicting units
+  use the translation target from the FS.
+
+``merge_pootle``
+  Merge Stores/files that have both been updated. If there are conflicting units
+  use the translation target from the Pootle.
 
 ``to_remove``
   A file or Store that does not have a corresponding Store/file that has been

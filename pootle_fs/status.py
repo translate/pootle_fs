@@ -50,6 +50,16 @@ FS_STATUS["fs_untracked"] = {
 FS_STATUS["fs_removed"] = {
     "title": "Removed from filesystem",
     "description": "Files that have been removed from the filesystem"}
+FS_STATUS["merge_pootle"] = {
+    "title": "Staged for merge (Pootle wins)",
+    "description": (
+        "Files or Stores that have been staged for merging on sync - pootle "
+        "wins where units are both updated")}
+FS_STATUS["merge_fs"] = {
+    "title": "Staged for merge (FS wins)",
+    "description": (
+        "Files or Stores that have been staged for merging on sync - FS "
+        "wins where units are both updated")}
 FS_STATUS["to_remove"] = {
     "title": "Staged for removal",
     "description": "Files or Stores that have been staged or removal on sync"}
@@ -91,6 +101,24 @@ FS_ACTION["removed"] = {
     "description":
         ("Files or Stores removed that no longer had corresponding files or "
          "Stores")}
+FS_ACTION["staged_for_merge_fs"] = {
+    "title": "Staged for merge (FS Wins)",
+    "description":
+        ("Files or Stores staged for merge where the corresponding "
+         "file/Store has also been updated or created")}
+FS_ACTION["staged_for_merge_pootle"] = {
+    "title": "Staged for merge (Pootle Wins)",
+    "description":
+        ("Files or Stores staged for merge where the corresponding "
+         "file/Store has also been updated or created")}
+FS_ACTION["merged_from_fs"] = {
+    "title": "Merged from fs",
+    "description":
+        ("Merged - FS won where unit updates conflicted")}
+FS_ACTION["merged_from_pootle"] = {
+    "title": "Merged from pootle",
+    "description":
+        ("Merged - Pootle won where unit updates conflicted")}
 
 
 class Status(object):
@@ -313,7 +341,8 @@ class ProjectFSStatus(object):
 
     @cached_property
     def synced_translations(self):
-        synced = self.fs.synced_translations.exclude(staged_for_removal=True)
+        synced = self.fs.synced_translations.exclude(
+            staged_for_removal=True).exclude(staged_for_merge=True)
         if self.pootle_path:
             synced = synced.filter(
                 pootle_path__startswith=self.pootle_path_root)
@@ -325,7 +354,7 @@ class ProjectFSStatus(object):
     @cached_property
     def unsynced_translations(self):
         unsynced = self.fs.unsynced_translations.exclude(
-            staged_for_removal=True)
+            staged_for_removal=True).exclude(staged_for_merge=True)
         if self.pootle_path:
             unsynced = unsynced.filter(
                 pootle_path__startswith=self.pootle_path_root)
@@ -437,6 +466,20 @@ class ProjectFSStatus(object):
                 "fs_untracked",
                 pootle_path=pootle_path,
                 fs_path=path)
+
+    def get_merge_pootle(self):
+        to_merge = self.fs.translations.filter(
+            staged_for_merge=True, resolve_conflict=POOTLE_WINS)
+
+        for store_fs in self._filtered_qs(to_merge):
+            yield self.link_status_class("merge_pootle", store_fs=store_fs)
+
+    def get_merge_fs(self):
+        to_merge = self.fs.translations.filter(
+            staged_for_merge=True, resolve_conflict=FS_WINS)
+
+        for store_fs in self._filtered_qs(to_merge):
+            yield self.link_status_class("merge_fs", store_fs=store_fs)
 
     def get_pootle_added(self):
         unsynced = self._filtered_qs(

@@ -165,7 +165,7 @@ def _create_conflict(plugin, path=None, edit_file=None):
         store_fs = StoreFS.objects.get(
             pootle_path=path)
         pootle_path = store_fs.pootle_path
-        fs_path = store_fs.file.file_path
+        fs_path = store_fs.path
         _update_store(pootle_path)
     else:
         pootle_path = "/en/tutorial/subdir3/subsubdir/example5.po"

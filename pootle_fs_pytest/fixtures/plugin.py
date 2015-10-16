@@ -71,9 +71,19 @@ def _generate_rm_fixtures():
     return rm
 
 
+def _generate_merge_fixtures():
+    merge = OrderedDict()
+    for test, pootle_path, fs_path in FETCH_PATHS:
+        merge[test] = {
+            "pootle_path": pootle_path,
+            "fs_path": fs_path}
+    return merge
+
+
 FETCH = _generate_fetch_fixtures()
 ADD = _generate_add_fixtures()
 RM = _generate_rm_fixtures()
+MERGE = _generate_merge_fixtures()
 
 
 @pytest.fixture
@@ -94,6 +104,11 @@ def add_translations(add):
 @pytest.fixture
 def rm_translations(rm):
     return RM[rm]
+
+
+@pytest.fixture
+def merge_translations(merge):
+    return MERGE[merge]
 
 
 @pytest.fixture

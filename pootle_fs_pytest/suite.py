@@ -3,6 +3,8 @@ import os
 
 
 def _check_fs(plugin, response):
+    from pootle_fs.models import StoreFS
+
     pushed = [
         os.path.join(plugin.fs.url, p.fs_path.strip("/"))
         for p in response["pushed_to_fs"]]
@@ -15,6 +17,12 @@ def _check_fs(plugin, response):
 
     for p in pruned:
         assert not os.path.exists(p)
+
+    for response in response["pushed_to_fs"]:
+        store_fs = StoreFS.objects.get(
+            pootle_path=response.pootle_path)
+        serialized = store_fs.store.serialize()
+        assert serialized == store_fs.file.read()
 
 
 def _test_sync(plugin, **kwargs):
@@ -31,6 +39,23 @@ def _test_sync(plugin, **kwargs):
     expected = {}
     expected["pulled_to_pootle"] = []
     expected["pushed_to_fs"] = []
+    expected["removed"] = []
+    expected["merged_from_fs"] = []
+    expected["merged_from_pootle"] = []
+
+    for fs_status in (status["merge_fs"]):
+        if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
+            continue
+        if fs_path and not fnmatch(fs_status.fs_path, fs_path):
+            continue
+        expected["merged_from_fs"].append(fs_status)
+
+    for fs_status in (status["merge_pootle"]):
+        if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
+            continue
+        if fs_path and not fnmatch(fs_status.fs_path, fs_path):
+            continue
+        expected["merged_from_pootle"].append(fs_status)
 
     for fs_status in (status["pootle_added"] + status["pootle_ahead"]):
         if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
@@ -93,16 +118,32 @@ def _test_sync(plugin, **kwargs):
     # ensure there are no stale "staged_for_removal"
     # or "resolve_conflict" flags
     for store_fs in plugin.translations.filter(staged_for_removal=True):
-        assert not fnmatch(store_fs.pootle_path, pootle_path)
-        assert not fnmatch(store_fs.fs_path, fs_path)
+        if pootle_path is not None:
+            assert not fnmatch(store_fs.pootle_path, pootle_path)
+        if fs_path is not None:
+            assert not fnmatch(store_fs.path, fs_path)
+        if pootle_path is None and fs_path is None:
+            assert not store_fs
     resolved = plugin.translations.filter(
         resolve_conflict__in=[FS_WINS, POOTLE_WINS])
     for store_fs in resolved:
-        assert not fnmatch(store_fs.pootle_path, pootle_path)
-        assert not fnmatch(store_fs.fs_path, fs_path)
+        if pootle_path is not None:
+            assert not fnmatch(store_fs.pootle_path, pootle_path)
+        if fs_path is not None:
+            assert not fnmatch(store_fs.path, fs_path)
+        if pootle_path is None and fs_path is None:
+            assert not store_fs
+    for store_fs in plugin.translations.filter(staged_for_merge=True):
+        if pootle_path is not None:
+            assert not fnmatch(store_fs.pootle_path, pootle_path)
+        if fs_path is not None:
+            assert not fnmatch(store_fs.path, fs_path)
+        if pootle_path is None and fs_path is None:
+            assert not store_fs
 
 
 def _test_response(expected, response):
+
     assert (
         sorted(x for x in response)
         == sorted(k for k, v in expected.items() if v))
@@ -179,18 +220,40 @@ def _run_rm_test(plugin, **kwargs):
     pootle_path = kwargs.get("pootle_path", None)
     fs_path = kwargs.get("fs_path", None)
     expected = {}
-    expected["to_remove"] = []
+    expected["staged_for_removal"] = []
     to_remove = (
-        status['pootle_untracked'] + status['fs_untracked']
-        + status['conflict_untracked'] + status["pootle_removed"]
-        + status["fs_removed"])
+        status["fs_untracked"] + status["pootle_untracked"]
+        + status["conflict_untracked"]
+        + status["pootle_removed"] + status["fs_removed"])
     for fs_status in to_remove:
         if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
             continue
         if fs_path and not fnmatch(fs_status.fs_path, fs_path):
             continue
-        expected["to_remove"].append(fs_status)
+        expected["staged_for_removal"].append(fs_status)
     response = plugin.rm_translations(**kwargs)
+    _test_response(expected, response)
+    _test_sync(plugin, **kwargs)
+
+
+def _run_merge_test(plugin, **kwargs):
+    status = plugin.status()
+    pootle_path = kwargs.get("pootle_path", None)
+    fs_path = kwargs.get("fs_path", None)
+    action_type = "staged_for_merge_fs"
+    if kwargs.get("pootle_wins", False):
+        action_type = "staged_for_merge_pootle"
+    expected = {}
+    expected[action_type] = []
+    to_remove = (
+        status["conflict_untracked"] + status["conflict"])
+    for fs_status in to_remove:
+        if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
+            continue
+        if fs_path and not fnmatch(fs_status.fs_path, fs_path):
+            continue
+        expected[action_type].append(fs_status)
+    response = plugin.merge_translations(**kwargs)
     _test_response(expected, response)
     _test_sync(plugin, **kwargs)
 
@@ -206,5 +269,8 @@ def run_add_test(plugin, **kwargs):
 
 
 def run_rm_test(plugin, **kwargs):
-    _run_add_test(plugin, force=False, **kwargs)
-    _run_add_test(plugin, force=True, **kwargs)
+    _run_rm_test(plugin, **kwargs)
+
+
+def run_merge_test(plugin, **kwargs):
+    _run_merge_test(plugin, **kwargs)

@@ -101,6 +101,20 @@ This command does not add any translation files in the FS - for tht you need to
   Stage files from Pootle that are conflicting
 
 
+``merge_translations`` subcommand
+-------------------------------
+
+Stage for merging any matched Stores/files that have either both been added or
+have both been updated
+
+.. code-block:: bash
+
+   pootle fs myproject merge_translations
+
+:option:`--pootle-wins`
+   Use the Pootle version for units that have conflicting changes.
+
+
 ``rm_translations`` subcommand
 -------------------------------
 

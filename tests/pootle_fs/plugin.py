@@ -11,7 +11,7 @@ import pytest
 from ConfigParser import ConfigParser
 
 from pootle_fs_pytest.suite import (
-    run_fetch_test, run_add_test, run_rm_test)
+    run_fetch_test, run_add_test, run_rm_test, run_merge_test)
 
 
 @pytest.mark.django
@@ -68,3 +68,16 @@ def test_plugin_add(fs_plugin_suite, add_translations):
 @pytest.mark.django
 def test_plugin_rm(fs_plugin_suite, rm_translations):
     run_rm_test(fs_plugin_suite, **rm_translations)
+
+
+# Parametrized MERGE
+@pytest.mark.django
+def test_plugin_merge_fs(fs_plugin_suite, merge_translations):
+    run_merge_test(fs_plugin_suite, **merge_translations)
+
+
+# Parametrized MERGE
+@pytest.mark.django
+def test_plugin_merge_pootle(fs_plugin_suite, merge_translations):
+    merge_translations["pootle_wins"] = True
+    run_merge_test(fs_plugin_suite, **merge_translations)

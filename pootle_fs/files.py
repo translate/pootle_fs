@@ -190,6 +190,7 @@ class FSFile(object):
         Called after FS and Pootle have been synced
         """
         self.fs_store.resolve_conflict = None
+        self.fs_store.staged_for_merge = False
         self.fs_store.last_sync_hash = latest_hash
         self.fs_store.last_sync_revision = revision
         self.fs_store.save()
@@ -240,15 +241,22 @@ class FSFile(object):
             f.write(self.store.serialize())
         logger.debug("Pushed file: %s" % self.path)
 
-    def sync_to_pootle(self):
+    def sync_to_pootle(self, pootle_wins=False, merge=False):
         """
         Update Pootle ``Store`` with the parsed FS file.
         """
         with open(self.file_path) as f:
+            if merge:
+                revision = self.fs_store.last_sync_revision
+            else:
+                revision = self.store.get_max_unit_revision()
+            tmp_store = getclass(f)(f.read())
             self.store.update(
                 overwrite=True,
-                store=getclass(f)(f.read()),
-                submission_type=SubmissionTypes.UPLOAD)
+                store=tmp_store,
+                submission_type=SubmissionTypes.UPLOAD,
+                revision=revision,
+                pootle_wins=pootle_wins)
         logger.debug("Pulled file: %s" % self.path)
         self.on_sync(
             self.latest_hash,
