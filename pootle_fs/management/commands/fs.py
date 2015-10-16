@@ -48,8 +48,7 @@ from .fs_commands.add_translations import AddTranslationsCommand
 from .fs_commands.info import ProjectInfoCommand
 from .fs_commands.fetch_translations import FetchTranslationsCommand
 from .fs_commands.files import FilesCommand
-from .fs_commands.pull_translations import PullTranslationsCommand
-from .fs_commands.push_translations import PushTranslationsCommand
+from .fs_commands.sync_translations import SyncTranslationsCommand
 from .fs_commands.set_fs import SetFSCommand
 from .fs_commands.status import StatusCommand
 
@@ -66,8 +65,7 @@ class Command(BaseCommand):
         "files": FilesCommand,
         "set_fs": SetFSCommand,
         "status": StatusCommand,
-        "pull_translations": PullTranslationsCommand,
-        "push_translations": PushTranslationsCommand}
+        "sync_translations": SyncTranslationsCommand}
 
     def execute(self, *args, **kwargs):
         if args:

@@ -104,6 +104,10 @@ class ProjectFS(models.Model):
         return self.plugin.push_translations(
             prune=prune, fs_path=fs_path, pootle_path=pootle_path)
 
+    def sync_translations(self, fs_path=None, pootle_path=None):
+        return self.plugin.sync_translations(
+            fs_path=fs_path, pootle_path=pootle_path)
+
     def read_config(self):
         return self.plugin.read_config()
 

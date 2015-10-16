@@ -26,6 +26,7 @@ class Plugin(object):
     finder_class = TranslationFileFinder
     language_mapper_class = LanguageMapper
     status_class = ProjectFSStatus
+    response_class = ActionResponse
 
     def __init__(self, fs):
         from .models import ProjectFS
@@ -106,7 +107,7 @@ class Plugin(object):
         if not self.is_cloned:
             self.pull()
 
-        response = ActionResponse(self)
+        response = self.response_class(self)
         status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["pootle_untracked"]
         if force:
@@ -147,7 +148,7 @@ class Plugin(object):
         if not self.is_cloned:
             self.pull()
 
-        response = ActionResponse(self)
+        response = self.response_class(self)
         status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["fs_untracked"]
         if force:
@@ -263,15 +264,17 @@ class Plugin(object):
         """
         self.read_config.cache_clear()
 
-    def pull_translations(self, prune=False, pootle_path=None, fs_path=None):
+    def pull_translations(self, prune=False, pootle_path=None, fs_path=None,
+                          response=None, status=None):
         """
         :param prune: Remove files that do not exist in the FS.
         :param fs_path: Path glob to filter translations matching FS path
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
-        response = ActionResponse(self)
-        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
+        response = response or self.response_class(self)
+        if status is None:
+            status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         for fs_status in (status['fs_added'] + status['fs_ahead']):
             fs_status.store_fs.file.pull()
             response.add("pulled_to_pootle", fs_status)
@@ -293,9 +296,10 @@ class Plugin(object):
         pass
 
     def push_translations(self, prune=False, pootle_path=None,
-                          fs_path=None, status=None):
-        response = self.push_translation_files(
-            prune=prune, pootle_path=pootle_path, fs_path=fs_path)
+                          fs_path=None, status=None, response=None):
+        response = response or self.response_class(self)
+        self.push_translation_files(
+            prune=prune, pootle_path=pootle_path, fs_path=fs_path, response=response)
         for action_status in response.completed("pushed_to_fs"):
             fs_file = action_status.store_fs.file
             fs_file.on_sync(
@@ -312,9 +316,9 @@ class Plugin(object):
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
-        response = response or ActionResponse(self)
-        status = status or self.status(
-            pootle_path=pootle_path, fs_path=fs_path)
+        response = response or self.response_class(self)
+        if status is None:
+            status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         pushable = status['pootle_added'] + status['pootle_ahead']
         for fs_status in pushable:
             fs_status.store_fs.file.push()
@@ -359,6 +363,13 @@ class Plugin(object):
         os.unlink(
             os.path.join(
                 self.local_fs_path, path.strip("/")))
+
+    def sync_translations(self, pootle_path=None, fs_path=None):
+        response = self.response_class(self)
+        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
+        self.pull_translations(pootle_path=None, fs_path=None, response=response, status=status)
+        self.push_translations(pootle_path=None, fs_path=None, response=response, status=status)
+        return response
 
 
 class Plugins(object):
