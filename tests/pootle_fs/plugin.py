@@ -46,6 +46,10 @@ def test_plugin_read_config(fs_plugin):
     config = fs_plugin.read_config()
     assert isinstance(config, ConfigParser)
     assert config.sections() == ['default', 'subdir1', 'subdir2', 'subdir3']
+    fs_plugin.fs.current_config.seek(0)
+    current = fs_plugin.fs.current_config.read()
+    fs_config = fs_plugin.read(fs_plugin.fs.pootle_config)
+    assert current == fs_config
 
 
 # Parametrized FETCH

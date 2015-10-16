@@ -45,6 +45,7 @@ from pootle_project.models import Project
 from pootle_fs.models import ProjectFS
 
 from .fs_commands.add_translations import AddTranslationsCommand
+from .fs_commands.config import ConfigCommand
 from .fs_commands.info import ProjectInfoCommand
 from .fs_commands.fetch_translations import FetchTranslationsCommand
 from .fs_commands.files import FilesCommand
@@ -61,6 +62,7 @@ class Command(BaseCommand):
     help = "Pootle FS."
     subcommands = {
         "add_translations": AddTranslationsCommand,
+        "config": ConfigCommand,
         "info": ProjectInfoCommand,
         "fetch_translations": FetchTranslationsCommand,
         "files": FilesCommand,

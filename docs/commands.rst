@@ -41,6 +41,19 @@ or...
    pootle fs myproject
 
 
+``config`` subcommand
+---------------------
+
+Print out the project FS configuration
+
+.. code-block:: bash
+
+   pootle fs myproject config
+
+:option:`--update -u`
+  Update the configuration from the FS .pootle.ini file
+
+
 ``status`` subcommand
 ---------------------
 

@@ -6,6 +6,7 @@ import os
 import shutil
 
 from django.conf import settings
+from django.core.files import File
 from django.utils.functional import cached_property
 from django.utils.lru_cache import lru_cache
 
@@ -262,7 +263,7 @@ class Plugin(object):
         """
         Pull the FS from external source if required.
         """
-        self.read_config.cache_clear()
+        pass
 
     def pull_translations(self, pootle_path=None, fs_path=None,
                           response=None, status=None):
@@ -332,6 +333,12 @@ class Plugin(object):
             content = f.read()
         return content
 
+    def update_config(self):
+        self.read_config.cache_clear()
+        self.fs.current_config.save(
+            self.fs.pootle_config,
+            File(io.BytesIO(self.read(self.fs.pootle_config))))
+
     @lru_cache(maxsize=None)
     def read_config(self):
         """
@@ -340,7 +347,9 @@ class Plugin(object):
         :return config: Where ``config`` is an ``ConfigParser`` instance
         """
         config = ConfigParser()
-        config.readfp(io.BytesIO(self.read(self.fs.pootle_config)))
+        if not self.fs.current_config:
+            self.update_config()
+        config.readfp(io.BytesIO(self.fs.current_config.file.read()))
         return config
 
     def status(self, fs_path=None, pootle_path=None):

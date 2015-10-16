@@ -65,6 +65,7 @@ class ProjectFS(models.Model):
     fetch_frequency = models.IntegerField(default=0)
     push_frequency = models.IntegerField(default=0)
     pootle_config = models.CharField(max_length=32, default=".pootle.ini")
+    current_config = models.FileField(blank=True, null=True)
 
     objects = ProjectFSManager()
 
