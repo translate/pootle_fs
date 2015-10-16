@@ -50,6 +50,9 @@ FS_STATUS["fs_untracked"] = {
 FS_STATUS["fs_removed"] = {
     "title": "Removed from filesystem",
     "description": "Files that have been removed from the filesystem"}
+FS_STATUS["to_remove"] = {
+    "title": "Staged for removal",
+    "description": "Files or Stores that have been staged or removal on sync"}
 
 FS_ACTION = OrderedDict()
 FS_ACTION["pruned_from_pootle"] = {
@@ -78,6 +81,16 @@ FS_ACTION["pushed_to_fs"] = {
     "title": "Pushed to filesystem",
     "description":
         "Files updated where Pootle Store version was new or newer"}
+FS_ACTION["staged_for_removal"] = {
+    "title": "Staged for removal",
+    "description":
+        ("Files or Stores staged for removal where the corresponding "
+         "file/Store is missing")}
+FS_ACTION["removed"] = {
+    "title": "Removed",
+    "description":
+        ("Files or Stores removed that no longer had corresponding files or "
+         "Stores")}
 
 
 class Status(object):
@@ -300,7 +313,7 @@ class ProjectFSStatus(object):
 
     @cached_property
     def synced_translations(self):
-        synced = self.fs.synced_translations
+        synced = self.fs.synced_translations.exclude(staged_for_removal=True)
         if self.pootle_path:
             synced = synced.filter(
                 pootle_path__startswith=self.pootle_path_root)
@@ -311,7 +324,8 @@ class ProjectFSStatus(object):
 
     @cached_property
     def unsynced_translations(self):
-        unsynced = self.fs.unsynced_translations
+        unsynced = self.fs.unsynced_translations.exclude(
+            staged_for_removal=True)
         if self.pootle_path:
             unsynced = unsynced.filter(
                 pootle_path__startswith=self.pootle_path_root)
@@ -485,6 +499,12 @@ class ProjectFSStatus(object):
 
     def get_status_type(self, status_type):
         return FS_STATUS[status_type]
+
+    def get_to_remove(self):
+        to_remove = self.fs.translations.filter(staged_for_removal=True)
+
+        for store_fs in self._filtered_qs(to_remove):
+            yield self.link_status_class("to_remove", store_fs=store_fs)
 
     def get_up_to_date(self):
         problem_paths = []

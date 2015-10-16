@@ -168,9 +168,10 @@ class FSFile(object):
         This does not commit/push
         """
         store = self.store
-        if store:
+        if store and store.pk:
             store.delete()
-        self.fs_store.delete()
+        if self.fs_store.pk:
+            self.fs_store.delete()
         self.remove_file()
 
     def fetch(self):

@@ -48,9 +48,10 @@ from .fs_commands.add_translations import AddTranslationsCommand
 from .fs_commands.info import ProjectInfoCommand
 from .fs_commands.fetch_translations import FetchTranslationsCommand
 from .fs_commands.files import FilesCommand
-from .fs_commands.sync_translations import SyncTranslationsCommand
+from .fs_commands.rm_translations import RmTranslationsCommand
 from .fs_commands.set_fs import SetFSCommand
 from .fs_commands.status import StatusCommand
+from .fs_commands.sync_translations import SyncTranslationsCommand
 
 
 logger = logging.getLogger('pootle.fs')
@@ -63,6 +64,7 @@ class Command(BaseCommand):
         "info": ProjectInfoCommand,
         "fetch_translations": FetchTranslationsCommand,
         "files": FilesCommand,
+        "rm_translations": RmTranslationsCommand,
         "set_fs": SetFSCommand,
         "status": StatusCommand,
         "sync_translations": SyncTranslationsCommand}
