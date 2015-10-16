@@ -11,7 +11,7 @@ import pytest
 from ConfigParser import ConfigParser
 
 from pootle_fs_pytest.suite import (
-    run_fetch_test, run_add_test, run_pull_test, run_push_test)
+    run_fetch_test, run_add_test, run_rm_test)
 
 
 @pytest.mark.django
@@ -60,13 +60,7 @@ def test_plugin_add(fs_plugin_suite, add_translations):
     run_add_test(fs_plugin_suite, **add_translations)
 
 
-# Parametrized PULL
+# Parametrized RM
 @pytest.mark.django
-def test_plugin_pull_translations(fs_plugin_suite, pull_translations):
-    run_pull_test(fs_plugin_suite, **pull_translations)
-
-
-# Parametrized PUSH
-@pytest.mark.django
-def test_plugin_push_translations(fs_plugin_suite, push_translations):
-    run_push_test(fs_plugin_suite, **push_translations)
+def test_plugin_rm(fs_plugin_suite, rm_translations):
+    run_rm_test(fs_plugin_suite, **rm_translations)

@@ -62,27 +62,18 @@ def _generate_add_fixtures():
     return add
 
 
-def _generate_pull_fixtures():
-    pull = OrderedDict()
+def _generate_rm_fixtures():
+    rm = OrderedDict()
     for test, pootle_path, fs_path in FETCH_PATHS:
-        pull[test] = {
+        rm[test] = {
             "pootle_path": pootle_path,
             "fs_path": fs_path}
-    return pull
+    return rm
 
-
-def _generate_push_fixtures():
-    push = OrderedDict()
-    for test, pootle_path, fs_path in FETCH_PATHS:
-        push[test] = {
-            "pootle_path": pootle_path,
-            "fs_path": fs_path}
-    return push
 
 FETCH = _generate_fetch_fixtures()
 ADD = _generate_add_fixtures()
-PULL = _generate_pull_fixtures()
-PUSH = _generate_push_fixtures()
+RM = _generate_rm_fixtures()
 
 
 @pytest.fixture
@@ -101,13 +92,8 @@ def add_translations(add):
 
 
 @pytest.fixture
-def pull_translations(pull):
-    return PULL[pull]
-
-
-@pytest.fixture
-def push_translations(push):
-    return PUSH[push]
+def rm_translations(rm):
+    return RM[rm]
 
 
 @pytest.fixture

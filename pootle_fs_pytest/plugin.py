@@ -12,12 +12,11 @@ from .fixtures.finder import (
 (finder_files, fs_finder, finder_matches, finder_root_paths)
 
 from .fixtures.plugin import (
-    ADD, FETCH, PULL, PUSH,
+    ADD, FETCH, RM,
     fs_plugin, fs_plugin_suite, fs_plugin_base, fs_plugin_pulled,
-    add_translations, fetch_translations, pull_translations, push_translations)
+    add_translations, fetch_translations, rm_translations)
 (fs_plugin, fs_plugin_base, fs_plugin_pulled,
- fs_plugin_suite, fetch_translations, add_translations, pull_translations,
- push_translations)
+ fs_plugin_suite, fetch_translations, add_translations, rm_translations)
 
 from .fixtures.status import PLUGIN_STATUS, fs_status
 fs_status
@@ -30,8 +29,7 @@ PARAMETERS = (
     ("files", FILES),
     ("matches", MATCHES),
     ("add", ADD),
-    ("pull", PULL),
-    ("push", PUSH),
+    ("rm", RM),
     ("fetch", FETCH),
     ("plugin_status", PLUGIN_STATUS))
 
