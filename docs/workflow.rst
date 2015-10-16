@@ -16,3 +16,7 @@ Pushing translation files from Pootle to FS
 
 Resolving conflicts
 ===================
+
+
+Removing files/Stores
+=====================

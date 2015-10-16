@@ -14,24 +14,37 @@ The app uses a configuration syntax to create associations between Pootle
 ``Stores`` and file stores. The stores can then be synced and changes in either
 can be tracked.
 
+Syncing is a 2-step process in which changes to Stores/files are initially
+staged with any or all of:
+
+- ``add_translations``
+- ``fetch_translations``
+- ``rm_translations``
+
+Changes to previously synced Stores/files are automatically staged for
+synchronisation, where no conflict exists.
+
+Once the desired changes have been staged ``sync_translations`` is called to
+perform the synchronisation.
+
 The workflow for bringing translations from FS into Pootle is:
 
 .. code-block::
    
-   fetch_translations  >>>  pull_translations
+   fetch_translations  >>>  sync_translations
 
-Where ``fetch_translations`` will mark the importable translations, and
-``pull_translations`` will actually sync the database.
+Where ``fetch_translations`` will stage the importable translations, and
+``sync_translations`` will actually sync to the database.
 
 
 The workflow for sending translations from Pootle to the FS:
 
 .. code-block::
    
-   add_translations  >>>  push_translations
+   add_translations  >>>  sync_translations
 
-Where ``add_translations`` will mark the exportable translations, and
-``push_translations`` will actually sync the FS.
+Where ``add_translations`` will stage the exportable translations, and
+``sync_translations`` will actually sync to the FS.
 
 
 Further reading

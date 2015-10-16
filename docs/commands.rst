@@ -64,26 +64,10 @@ configuration file, create `FSStore` objects to track the associations.
 This command is the functional opposite of the ``add_translations`` command.
 
 This command does not add any translation files in the FS - for that you need to
-``pull_translations``.
+``sync_translations``.
 
 :option:`--force`
   Stage files from FS that are conflicting
-
-
-``pull_translations`` subcommand
---------------------------------
-
-Pull translations from FS into Pootle:
-
-- Create stores in Pootle where they dont exist already
-- Update exisiting stores from FS translation file
-
-.. code-block:: bash
-
-   pootle fs myproject pull_translations
-
-:option:`--prune`
-  Remove files from Pootle that are not present in FS
 
 
 ``add_translations`` subcommand
@@ -104,20 +88,38 @@ This command does not add any translation files in the FS - for tht you need to
   Stage files from Pootle that are conflicting
 
 
-``push_translations`` subcommand
+``rm_translations`` subcommand
+-------------------------------
+
+Stage for removal any matched Stores/files that do not have a corresponding
+Store/file in Pootle/FS.
+
+.. code-block:: bash
+
+   pootle fs myproject rm_translations
+
+
+``sync_translations`` subcommand
 --------------------------------
 
-Commit and push translations from Pootle into FS
+Synchronize translations between FS and Pootle:
 
-:option:`--prune`
-  Remove files from Pootle that are not present in FS
+- Create stores in Pootle where they dont exist already
+- Update exisiting stores from FS translation file
+- Create files where not present
+- Update existing files where Stores have changed
+- Remove files/Stores staged for removal
+
+.. code-block:: bash
+
+   pootle fs myproject sync_translations
 
 
 Path options
 ------------
 
-:option:`--pootle_path`
+:option:`--pootle_path -P`
   Only show/affect files where the pootle_path matches a given file glob.
 
-:option:`--path`
+:option:`--path -p`
   Only show/affect files where the FS path matches a given file glob.
