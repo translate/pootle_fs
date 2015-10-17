@@ -6,6 +6,7 @@ import os
 import shutil
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.files import File
 from django.utils.functional import cached_property
 from django.utils.lru_cache import lru_cache
@@ -67,6 +68,20 @@ class Plugin(object):
     def local_fs_path(self):
         return os.path.join(
             settings.POOTLE_FS_PATH, self.fs.project.code)
+
+    @property
+    def pootle_user(self):
+        User = get_user_model()
+        config = self.read_config()
+        if config.has_option("default", "pootle_user"):
+            username = config.get("default", "pootle_user")
+            try:
+                return User.objects.get(username=username)
+            except User.DoesNotExist:
+                logger.warning(
+                    "Misconfigured user in .pootle.ini: %s"
+                    % username)
+        return None
 
     @property
     def project(self):

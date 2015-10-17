@@ -249,7 +249,6 @@ class FSFile(object):
         """
         Update Pootle ``Store`` with the parsed FS file.
         """
-
         with open(self.file_path) as f:
             if merge:
                 revision = self.fs_store.last_sync_revision
@@ -260,6 +259,7 @@ class FSFile(object):
                 overwrite=True,
                 store=tmp_store,
                 submission_type=SubmissionTypes.UPLOAD,
+                user=self.plugin.pootle_user,
                 revision=revision,
                 pootle_wins=pootle_wins)
         logger.debug("Pulled file: %s" % self.path)
