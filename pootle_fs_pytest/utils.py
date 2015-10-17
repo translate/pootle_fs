@@ -1,8 +1,14 @@
 from datetime import datetime
+import logging
 from md5 import md5
 import os
 import shutil
+import uuid
 
+from translate.storage.po import pounit
+
+
+logger = logging.getLogger(__name__)
 
 EXAMPLE_FS = os.path.join(os.path.dirname(__file__), "data/fs/example_fs")
 
@@ -17,7 +23,7 @@ translation_path = po/<lang>.po
 """
 
 PO_FILE = """
-# This line seems to be relevant - wierd
+# Comment
 msgid ""
 msgstr ""
 "Project-Id-Version: Translate tutorial 1.0\\n"
@@ -34,8 +40,8 @@ msgstr ""
 
 
 #. Hello, world
-msgid "Hello, world"
-msgstr "Hello, world FS UPDATE"
+msgid "Hello, world %s"
+msgstr "Hello, world %s"
 
 """
 
@@ -158,12 +164,13 @@ def _register_plugin(name="example", plugin=None, clear=True):
         def get_latest_hash(self):
             return md5(str(datetime.now())).hexdigest()
 
-        def push(self, paths=None, msg=None):
+        def push(self, response):
             if os.path.exists(self.fs.url):
                 shutil.rmtree(self.fs.url)
             shutil.copytree(
                 self.local_fs_path,
                 self.fs.url)
+            return response
 
         def pull(self):
             if os.path.exists(self.local_fs_path):
@@ -234,7 +241,8 @@ def _edit_file(plugin, filepath):
         f.seek(0)
         existing = f.read()
         if not existing:
-            content = PO_FILE
+            uid = uuid.uuid4().hex
+            content = PO_FILE % (uid, uid)
         else:
             update_id = str(datetime.now())
             content = (
@@ -251,25 +259,21 @@ def _remove_file(plugin, path):
 def _update_store(plugin, pootle_path):
     from django.contrib.auth import get_user_model
 
-    from pootle_store.models import Unit, Store
+    from pootle_store.models import Store, Revision
 
     store = Store.objects.get(pootle_path=pootle_path)
-    revision = store.get_max_unit_revision() or 1
-    index = store.max_index() + 1
-    unitid = "New unit %s" % str(datetime.now())
-    unit = Unit.objects.create(
-        unitid=unitid,
-        source=unitid,
-        store=store,
-        index=index,
-        revision=revision)
-    unit.target = "Bar %s" % str(datetime.now())
+    revision = Revision.incr()
+    uid = uuid.uuid4().hex
+    unitid = "New unit %s" % uid
+    unit = pounit(unitid)
+    unit.target = "Bar %s" % uid
     user = plugin.pootle_user
     if user is None:
         User = get_user_model()
         user = User.objects.get_system_user()
-    unit.submitted_by = user
-    unit.save()
+    unit.store = store
+    unit = store.addunit(unit, user=user, revision=revision)
+    store.save()
 
 
 def _remove_store(pootle_path):
@@ -323,7 +327,7 @@ def _setup_export_dir(dir_path, settings):
 
 def create_test_suite(plugin, edit_file=None, remove_file=None):
     plugin.fetch_translations()
-    plugin.pull_translations()
+    plugin.sync_translations()
     _ef = edit_file or _edit_file
     _ef(plugin, "non_gnu_style/locales/en/foo/bar/baz.po")
     _ef(plugin, "gnu_style_named_folders/po-example10/en.po")
@@ -340,6 +344,7 @@ def create_test_suite(plugin, edit_file=None, remove_file=None):
     _setup_store("/en/tutorial/subdir2/example11.po")
     _remove_store("/en/tutorial/subdir2/example1.po")
     status = plugin.status()
+
     for k in TEST_SUITE_STATUS:
         assert k in status
     return plugin

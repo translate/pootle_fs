@@ -355,11 +355,11 @@ class Plugin(object):
             response.add("pulled_to_pootle", fs_status)
         return response
 
-    def push(self, paths=None, message=None):
+    def push(self, paths=None, message=None, response=None):
         """
         Push the FS to an external source if required.
         """
-        pass
+        return response
 
     def push_translations(self, pootle_path=None,
                           fs_path=None, status=None, response=None):
@@ -373,8 +373,7 @@ class Plugin(object):
             fs_file.on_sync(
                 fs_file.latest_hash,
                 action_status.store_fs.store.get_max_unit_revision())
-        self.push(response)
-        return response
+        return self.push(response)
 
     def push_translation_files(self, pootle_path=None,
                                fs_path=None, status=None, response=None):

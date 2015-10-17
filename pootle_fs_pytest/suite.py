@@ -3,49 +3,58 @@ import os
 
 from translate.storage.factory import getclass
 
+from .utils import create_test_suite
 
-def _check_fs(plugin, response):
+
+def check_files_match(src, response):
     from pootle_fs.models import StoreFS
 
-    pushed = [
-        os.path.join(plugin.fs.url, p.fs_path.strip("/"))
-        for p in response["pushed_to_fs"]]
-    pruned = [
-        os.path.join(plugin.fs.url, p.fs_path.strip("/"))
-        for p in response["pruned_from_fs"]]
-
-    for p in pushed:
-        assert os.path.exists(p)
-
-    for p in pruned:
-        assert not os.path.exists(p)
-
+    assert all(
+        os.path.exists(
+            os.path.join(
+                src,
+                p.fs_path.strip("/")))
+        for p
+        in response["pushed_to_fs"])
+    assert not any(
+        os.path.exists(
+            os.path.join(
+                src,
+                p.fs_path.strip("/")))
+        for p
+        in response["pruned_from_fs"])
     pushed = (
         response["pushed_to_fs"]
         + response["merged_from_pootle"])
-
     synced = (
         response["pulled_to_pootle"]
         + response["pushed_to_fs"]
         + response["merged_from_fs"]
         + response["merged_from_pootle"]
         + response["merged_from_fs"])
-
     for action in pushed:
         store_fs = StoreFS.objects.get(
             pootle_path=action.pootle_path)
         serialized = store_fs.store.serialize()
         assert serialized == store_fs.file.read()
-
     for action in synced:
-        with open(action.store_fs.file.file_path) as src:
-            store = getclass(src)(src.read())
+        store_fs = StoreFS.objects.get(
+            pootle_path=action.pootle_path)
+        file_path = os.path.join(
+            src,
+            store_fs.path.strip("/"))
+        with open(file_path) as src_file:
+            store = getclass(src_file)(src_file.read())
             units = [s for s in store.units if s.source]
-            assert len(units) == action.store.units.count()
+            assert len(units) == store_fs.store.units.count()
             for i, src_unit in enumerate(units):
                 target_unit = action.store.units[i]
                 assert src_unit.source == target_unit.source
                 assert src_unit.target == target_unit.target
+
+
+def _check_fs(plugin, response):
+    check_files_match(plugin.fs.url, response)
 
 
 def _test_sync(plugin, **kwargs):

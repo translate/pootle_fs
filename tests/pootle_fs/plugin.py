@@ -97,16 +97,18 @@ def test_plugin_pootle_attribution(fs_plugin_suite, member):
                 assert unit.submitted_by.username == "member"
 
 
-# Parametrized FETCH
-@pytest.mark.django
-def test_plugin_fetch(fs_plugin_suite, fetch_translations):
-    run_fetch_test(fs_plugin_suite, **fetch_translations)
-
-
 # Parametrized ADD
-@pytest.mark.django
+@pytest.mark.django_db(transaction=True)
 def test_plugin_add(fs_plugin_suite, add_translations):
+    print "Running add test"
     run_add_test(fs_plugin_suite, **add_translations)
+
+
+# Parametrized FETCH
+@pytest.mark.django_db(transaction=True)
+def test_plugin_fetch(fs_plugin_suite, fetch_translations):
+    print "Running fetch test"
+    run_fetch_test(fs_plugin_suite, **fetch_translations)
 
 
 # Parametrized RM

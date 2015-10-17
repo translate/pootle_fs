@@ -13,7 +13,7 @@ import shutil
 
 import pytest
 
-from pootle_fs_pytest.utils import create_test_suite, create_plugin
+from pootle_fs_pytest.utils import create_plugin, create_test_suite
 
 
 _plugin_fetch_base = {
@@ -87,11 +87,6 @@ MERGE = _generate_merge_fixtures()
 
 
 @pytest.fixture
-def fs_plugin_suite(fs_plugin):
-    return create_test_suite(fs_plugin)
-
-
-@pytest.fixture
 def fetch_translations(fetch):
     return FETCH[fetch]
 
@@ -122,7 +117,16 @@ def fs_plugin(fs_plugin_base):
 
 @pytest.fixture
 def fs_plugin_base(tutorial, tmpdir, settings, system, english, zulu):
+    from django.core.cache import caches
+
     import pootle_fs_pytest
+
+    from pootle.core.models import Revision
+    from pootle_store.models import Unit
+
+    caches["exports"].clear()
+
+    Revision.set(Unit.max_revision())
 
     dir_path = str(tmpdir.dirpath())
     repo_path = os.path.join(dir_path, "__src__")
@@ -140,7 +144,13 @@ def fs_plugin_base(tutorial, tmpdir, settings, system, english, zulu):
 
 
 @pytest.fixture
-def fs_plugin_pulled(fs_plugin):
+def fs_plugin_suite(fs_plugin):
+    return create_test_suite(fs_plugin)
+
+
+@pytest.fixture
+def fs_plugin_synced(fs_plugin):
+    fs_plugin.add_translations()
     fs_plugin.fetch_translations()
-    fs_plugin.pull_translations()
+    fs_plugin.sync_translations()
     return fs_plugin

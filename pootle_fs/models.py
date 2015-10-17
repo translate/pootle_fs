@@ -36,7 +36,7 @@ class StoreFS(models.Model):
 
     objects = StoreFSManager()
 
-    @cached_property
+    @property
     def file(self):
         return self.fs.fs_file(self)
 

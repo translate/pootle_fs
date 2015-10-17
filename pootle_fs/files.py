@@ -240,7 +240,6 @@ class FSFile(object):
         """
         Update FS file with the serialized content from Pootle ```Store```
         """
-
         with open(self.file_path, "w") as f:
             f.write(self.store.serialize())
         logger.debug("Pushed file: %s" % self.path)

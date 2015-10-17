@@ -59,7 +59,7 @@ PLUGIN_STATUS["fs_ahead"] = (
        "/non_gnu_style/locales/en/subsubdir/example4.po")]})
 PLUGIN_STATUS["pootle_ahead"] = (
     lambda plugin: (
-        _update_store("/en/tutorial/subdir3/subsubdir/example4.po"),
+        _update_store(plugin, "/en/tutorial/subdir3/subsubdir/example4.po"),
         plugin.add_translations()),
     {"pootle_ahead":
      [(u"/en/tutorial/subdir3/subsubdir/example4.po",
@@ -77,7 +77,7 @@ PLUGIN_STATUS["pootle_removed"] = (
        "/non_gnu_style/locales/en/subsubdir/example4.po")]})
 PLUGIN_STATUS["conflict"] = (
     lambda plugin: (
-        _update_store("/en/tutorial/subdir3/subsubdir/example4.po"),
+        _update_store(plugin, "/en/tutorial/subdir3/subsubdir/example4.po"),
         _edit_file(
             plugin, "/non_gnu_style/locales/en/subsubdir/example4.po")),
     {"conflict":
@@ -86,5 +86,5 @@ PLUGIN_STATUS["conflict"] = (
 
 
 @pytest.fixture
-def fs_status(fs_plugin_pulled, plugin_status):
-    return [fs_plugin_pulled] + list(PLUGIN_STATUS[plugin_status])
+def fs_status(fs_plugin_synced, plugin_status):
+    return [fs_plugin_synced] + list(PLUGIN_STATUS[plugin_status])

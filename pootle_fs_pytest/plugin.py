@@ -13,10 +13,10 @@ from .fixtures.finder import (
 
 from .fixtures.plugin import (
     ADD, FETCH, RM, MERGE,
-    fs_plugin, fs_plugin_suite, fs_plugin_base, fs_plugin_pulled,
+    fs_plugin, fs_plugin_base, fs_plugin_suite, fs_plugin_synced,
     add_translations, fetch_translations, rm_translations, merge_translations)
-(fs_plugin, fs_plugin_base, fs_plugin_pulled,
- fs_plugin_suite, fetch_translations, add_translations, rm_translations,
+(fs_plugin, fs_plugin_base, fs_plugin_suite, fs_plugin_synced,
+ fetch_translations, add_translations, rm_translations,
  merge_translations)
 
 from .fixtures.status import PLUGIN_STATUS, fs_status

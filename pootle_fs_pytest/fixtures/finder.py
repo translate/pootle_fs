@@ -136,15 +136,15 @@ def finder_files(files):
 
 
 @pytest.fixture
-def fs_finder(fs_plugin_pulled, finder_files):
+def fs_finder(fs_plugin_synced, finder_files):
     from pootle_fs.finder import TranslationFileFinder
     translation_path, expected = finder_files
     finder = TranslationFileFinder(
         os.path.join(
-            fs_plugin_pulled.local_fs_path,
+            fs_plugin_synced.local_fs_path,
             translation_path))
     expected = [
-        (os.path.join(fs_plugin_pulled.local_fs_path,
+        (os.path.join(fs_plugin_synced.local_fs_path,
                       path),
          parsed)
         for path, parsed in expected]
