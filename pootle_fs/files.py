@@ -91,6 +91,10 @@ class FSFile(object):
         raise NotImplementedError
 
     @property
+    def plugin(self):
+        return self.fs.plugin
+
+    @property
     def project(self):
         return self.fs_store.project
 
@@ -245,11 +249,12 @@ class FSFile(object):
         """
         Update Pootle ``Store`` with the parsed FS file.
         """
+
         with open(self.file_path) as f:
             if merge:
                 revision = self.fs_store.last_sync_revision
             else:
-                revision = self.store.get_max_unit_revision()
+                revision = self.store.get_max_unit_revision() + 1
             tmp_store = getclass(f)(f.read())
             self.store.update(
                 overwrite=True,

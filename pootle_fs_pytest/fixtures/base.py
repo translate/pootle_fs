@@ -105,6 +105,12 @@ def en_tutorial_fs_po(settings, english_tutorial_fs, system):
 
 
 @pytest.fixture
+def member(db):
+    """Require the member user."""
+    return _require_user('member', 'member user')
+
+
+@pytest.fixture
 def system(db):
     """Require the system user."""
     return _require_user('system', 'system user')

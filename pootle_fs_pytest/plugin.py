@@ -1,9 +1,9 @@
 from .fixtures.base import (
     root, projects, english, zulu, tutorial, english_tutorial, po_directory,
-    english_tutorial_fs, en_tutorial_po, en_tutorial_fs_po, system,
+    english_tutorial_fs, en_tutorial_po, en_tutorial_fs_po, system, member,
     tutorial_fs, en_tutorial_po_fs_store, delete_pattern)
 (root, projects, english, zulu, tutorial, english_tutorial, po_directory,
- english_tutorial_fs, en_tutorial_po, en_tutorial_fs_po, system,
+ english_tutorial_fs, en_tutorial_po, en_tutorial_fs_po, system, member,
  tutorial_fs, en_tutorial_po_fs_store, delete_pattern)
 
 from .fixtures.finder import (

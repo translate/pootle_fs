@@ -16,6 +16,36 @@ PO_CONFIG = """
 translation_path = po/<lang>.po
 """
 
+PO_FILE = """
+# This line seems to be relevant - wierd
+msgid ""
+msgstr ""
+"Project-Id-Version: Translate tutorial 1.0\\n"
+"Report-Msgid-Bugs-To: translate-devel@lists.sourceforge.net\\n"
+"POT-Creation-Date: 2008-11-25 10:03+0200\\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n"
+"Language-Team: LANGUAGE <LL@li.org>\\n"
+"Language: en\\n"
+"MIME-Version: 1.0\\n"
+"Content-Type: text/plain; charset=UTF-8\\n"
+"Content-Transfer-Encoding: 8bit\\n"
+"X-Generator: Translate Toolkit 1.2.0\\n"
+
+
+#. Hello, world
+msgid "Hello, world"
+msgstr "Hello, world FS UPDATE"
+
+"""
+
+PO_UPDATE = """
+
+#. PO Update %s
+msgid "PO Update %s"
+msgstr "PO updated %s"
+"""
+
 TEST_SUITE_STATUS = [
     'conflict', 'conflict_untracked',
     'pootle_ahead', 'pootle_untracked', 'pootle_removed',
@@ -171,7 +201,7 @@ def _create_conflict(plugin, path=None, edit_file=None):
             pootle_path=path)
         pootle_path = store_fs.pootle_path
         fs_path = store_fs.path
-        _update_store(pootle_path)
+        _update_store(plugin, pootle_path)
     else:
         pootle_path = "/en/tutorial/subdir3/subsubdir/example5.po"
         fs_path = "/non_gnu_style/locales/en/subsubdir/example5.po"
@@ -200,8 +230,17 @@ def _edit_file(plugin, filepath):
     dir_name = os.path.dirname(po_file)
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
-    with open(po_file, "w") as f:
-        f.write(str(datetime.now()))
+    with open(po_file, "ar+") as f:
+        f.seek(0)
+        existing = f.read()
+        if not existing:
+            content = PO_FILE
+        else:
+            update_id = str(datetime.now())
+            content = (
+                PO_UPDATE
+                % (update_id, update_id, update_id))
+        f.write(content)
 
 
 def _remove_file(plugin, path):
@@ -209,25 +248,28 @@ def _remove_file(plugin, path):
     os.unlink(os.path.join(plugin.fs.url, path.strip("/")))
 
 
-def _update_store(pootle_path):
+def _update_store(plugin, pootle_path):
     from django.contrib.auth import get_user_model
 
     from pootle_store.models import Unit, Store
 
-    User = get_user_model()
-
     store = Store.objects.get(pootle_path=pootle_path)
     revision = store.get_max_unit_revision() or 1
     index = store.max_index() + 1
+    unitid = "New unit %s" % str(datetime.now())
     unit = Unit.objects.create(
-        unitid="Foo",
-        source="Foo",
+        unitid=unitid,
+        source=unitid,
         store=store,
         index=index,
         revision=revision)
-    unit.target = "Bar"
+    unit.target = "Bar %s" % str(datetime.now())
+    user = plugin.pootle_user
+    if user is None:
+        User = get_user_model()
+        user = User.objects.get_system_user()
+    unit.submitted_by = user
     unit.save()
-    store.addunit(unit, revision=revision, user=User.objects.get_system_user())
 
 
 def _remove_store(pootle_path):
@@ -294,7 +336,7 @@ def create_test_suite(plugin, edit_file=None, remove_file=None):
     _create_conflict(
         plugin, "/zu/tutorial/subdir3/subsubdir/example4.po",
         edit_file=edit_file)
-    _update_store("/en/tutorial/subdir2/example2.po")
+    _update_store(plugin, "/en/tutorial/subdir2/example2.po")
     _setup_store("/en/tutorial/subdir2/example11.po")
     _remove_store("/en/tutorial/subdir2/example1.po")
     status = plugin.status()

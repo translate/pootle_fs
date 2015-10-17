@@ -1,6 +1,8 @@
 from fnmatch import fnmatch
 import os
 
+from translate.storage.factory import getclass
+
 
 def _check_fs(plugin, response):
     from pootle_fs.models import StoreFS
@@ -18,11 +20,32 @@ def _check_fs(plugin, response):
     for p in pruned:
         assert not os.path.exists(p)
 
-    for response in response["pushed_to_fs"]:
+    pushed = (
+        response["pushed_to_fs"]
+        + response["merged_from_pootle"])
+
+    synced = (
+        response["pulled_to_pootle"]
+        + response["pushed_to_fs"]
+        + response["merged_from_fs"]
+        + response["merged_from_pootle"]
+        + response["merged_from_fs"])
+
+    for action in pushed:
         store_fs = StoreFS.objects.get(
-            pootle_path=response.pootle_path)
+            pootle_path=action.pootle_path)
         serialized = store_fs.store.serialize()
         assert serialized == store_fs.file.read()
+
+    for action in synced:
+        with open(action.store_fs.file.file_path) as src:
+            store = getclass(src)(src.read())
+            units = [s for s in store.units if s.source]
+            assert len(units) == action.store.units.count()
+            for i, src_unit in enumerate(units):
+                target_unit = action.store.units[i]
+                assert src_unit.source == target_unit.source
+                assert src_unit.target == target_unit.target
 
 
 def _test_sync(plugin, **kwargs):

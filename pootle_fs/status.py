@@ -166,6 +166,16 @@ class ActionStatus(Status):
         self.complete = complete
         self.original_status = original_status
 
+    def __str__(self):
+        if self.failed:
+            failed = " FAILED"
+        else:
+            failed = ""
+        return (
+            "<FSAction(%s)%s: %s %s>"
+            % (self.store_fs.project, failed,
+               self.action_type, self.pootle_path))
+
     @property
     def failed(self):
         return not self.complete
