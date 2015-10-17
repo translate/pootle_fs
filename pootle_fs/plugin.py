@@ -386,10 +386,11 @@ class Plugin(object):
         return content
 
     def update_config(self):
-        self.read_config.cache_clear()
+        self.pull()
         self.fs.current_config.save(
             self.fs.pootle_config,
             File(io.BytesIO(self.read(self.fs.pootle_config))))
+        self.read_config.cache_clear()
 
     @lru_cache(maxsize=None)
     def read_config(self):
