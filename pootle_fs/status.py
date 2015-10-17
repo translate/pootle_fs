@@ -222,6 +222,16 @@ class ActionResponse(object):
     def __len__(self):
         return len([x for x in self.__iter__()])
 
+    def __str__(self):
+        if self.made_changes:
+            return (
+                "<FSActionResponse(%s): %s>"
+                % (self.plugin.project,
+                   ', '.join(["%s: %s" % (k, len(v))
+                              for k, v in self.__actions__.items()
+                              if v])))
+        return "<FSActionResponse(%s): No changes made>" % self.plugin.project
+
     @property
     def action_types(self):
         return FS_ACTION.keys()
