@@ -16,6 +16,11 @@ PO_CONFIG = """
 translation_path = po/<lang>.po
 """
 
+TEST_SUITE_STATUS = [
+    'conflict', 'conflict_untracked',
+    'pootle_ahead', 'pootle_untracked', 'pootle_removed',
+    'fs_ahead', 'fs_untracked']
+
 
 def _require_language(code, fullname, plurals=2, plural_equation='(n != 1)'):
     """Helper to get/create a new language."""
@@ -292,6 +297,9 @@ def create_test_suite(plugin, edit_file=None, remove_file=None):
     _update_store("/en/tutorial/subdir2/example2.po")
     _setup_store("/en/tutorial/subdir2/example11.po")
     _remove_store("/en/tutorial/subdir2/example1.po")
+    status = plugin.status()
+    for k in TEST_SUITE_STATUS:
+        assert k in status
     return plugin
 
 

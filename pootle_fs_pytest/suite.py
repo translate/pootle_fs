@@ -231,7 +231,8 @@ def _run_rm_test(plugin, **kwargs):
         if fs_path and not fnmatch(fs_status.fs_path, fs_path):
             continue
         expected["staged_for_removal"].append(fs_status)
-    response = plugin.rm_translations(**kwargs)
+    response = plugin.rm_translations(
+        pootle_path=pootle_path, fs_path=fs_path)
     _test_response(expected, response)
     _test_sync(plugin, **kwargs)
 
@@ -240,8 +241,9 @@ def _run_merge_test(plugin, **kwargs):
     status = plugin.status()
     pootle_path = kwargs.get("pootle_path", None)
     fs_path = kwargs.get("fs_path", None)
+    pootle_wins = kwargs.get("pootle_wins", False)
     action_type = "staged_for_merge_fs"
-    if kwargs.get("pootle_wins", False):
+    if pootle_wins:
         action_type = "staged_for_merge_pootle"
     expected = {}
     expected[action_type] = []
@@ -253,7 +255,8 @@ def _run_merge_test(plugin, **kwargs):
         if fs_path and not fnmatch(fs_status.fs_path, fs_path):
             continue
         expected[action_type].append(fs_status)
-    response = plugin.merge_translations(**kwargs)
+    response = plugin.merge_translations(
+        pootle_path=pootle_path, fs_path=fs_path, pootle_wins=pootle_wins)
     _test_response(expected, response)
     _test_sync(plugin, **kwargs)
 

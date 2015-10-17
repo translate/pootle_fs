@@ -79,5 +79,7 @@ def test_plugin_merge_fs(fs_plugin_suite, merge_translations):
 # Parametrized MERGE
 @pytest.mark.django
 def test_plugin_merge_pootle(fs_plugin_suite, merge_translations):
-    merge_translations["pootle_wins"] = True
-    run_merge_test(fs_plugin_suite, **merge_translations)
+    run_merge_test(
+        fs_plugin_suite,
+        pootle_wins=True,
+        **merge_translations)
