@@ -1,4 +1,5 @@
 from fnmatch import fnmatch
+import io
 import os
 
 from translate.storage.factory import getclass
@@ -21,34 +22,37 @@ def check_files_match(src, response):
                 p.fs_path.strip("/")))
         for p
         in response["pruned_from_fs"])
-    pushed = (
-        response["pushed_to_fs"]
-        + response["merged_from_pootle"])
+    # Any Store/files that have been synced should now match
     synced = (
         response["pulled_to_pootle"]
         + response["pushed_to_fs"]
         + response["merged_from_fs"]
         + response["merged_from_pootle"]
         + response["merged_from_fs"])
-    for action in pushed:
-        store_fs = StoreFS.objects.get(
-            pootle_path=action.pootle_path)
-        serialized = store_fs.store.serialize()
-        assert serialized == store_fs.file.read()
     for action in synced:
         store_fs = StoreFS.objects.get(
             pootle_path=action.pootle_path)
         file_path = os.path.join(
             src,
             store_fs.path.strip("/"))
+        store_f = io.BytesIO(store_fs.store.serialize())
         with open(file_path) as src_file:
-            store = getclass(src_file)(src_file.read())
-            units = [s for s in store.units if s.source]
-            assert len(units) == store_fs.store.units.count()
-            for i, src_unit in enumerate(units):
-                target_unit = action.store.units[i]
-                assert src_unit.source == target_unit.source
-                assert src_unit.target == target_unit.target
+            file_store = getclass(src_file)(src_file.read())
+            serialized = getclass(store_f)(store_f.read())
+            assert (
+                [(x.source, x.target)
+                 for x in file_store.units if x.source]
+                == [(x.source, x.target)
+                    for x in serialized.units if x.source])
+
+    for action in response["removed"]:
+        store = action.original_status.store_fs.store
+        if store:
+            assert store.obsolete is True
+        assert action.original_status.store_fs.file.exists is False
+        assert action.original_status.store_fs.pk is None
+        assert not os.path.exists(
+            os.path.join(src, action.fs_path.strip("/")))
 
 
 def _check_fs(plugin, response):
@@ -73,40 +77,23 @@ def _test_sync(plugin, **kwargs):
     expected["merged_from_fs"] = []
     expected["merged_from_pootle"] = []
 
-    for fs_status in (status["merge_fs"]):
-        if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
-            continue
-        if fs_path and not fnmatch(fs_status.fs_path, fs_path):
-            continue
-        expected["merged_from_fs"].append(fs_status)
+    response_mapping = {
+        "merged_from_fs": ("merge_fs", ),
+        "merged_from_pootle": ("merge_pootle", ),
+        "pushed_to_fs": ("pootle_added", "pootle_ahead"),
+        "pulled_to_pootle": ("fs_added", "fs_ahead"),
+        "removed": ("to_remove", )}
 
-    for fs_status in (status["merge_pootle"]):
-        if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
-            continue
-        if fs_path and not fnmatch(fs_status.fs_path, fs_path):
-            continue
-        expected["merged_from_pootle"].append(fs_status)
-
-    for fs_status in (status["pootle_added"] + status["pootle_ahead"]):
-        if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
-            continue
-        if fs_path and not fnmatch(fs_status.fs_path, fs_path):
-            continue
-        expected["pushed_to_fs"].append(fs_status)
-
-    for fs_status in (status["fs_added"] + status["fs_ahead"]):
-        if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
-            continue
-        if fs_path and not fnmatch(fs_status.fs_path, fs_path):
-            continue
-        expected["pulled_to_pootle"].append(fs_status)
-
-    for fs_status in status["to_remove"]:
-        if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
-            continue
-        if fs_path and not fnmatch(fs_status.fs_path, fs_path):
-            continue
-        expected["removed"].append(fs_status)
+    for expect, prev_status in response_mapping.items():
+        _prev_status = []
+        for k in prev_status:
+            _prev_status += status[k]
+        for fs_status in _prev_status:
+            if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):
+                continue
+            if fs_path and not fnmatch(fs_status.fs_path, fs_path):
+                continue
+            expected[expect].append(fs_status)
 
     response = plugin.sync_translations(
         pootle_path=pootle_path, fs_path=fs_path)
@@ -132,16 +119,6 @@ def _test_sync(plugin, **kwargs):
                 assert (
                     store_fs.file.latest_hash
                     == store_fs.last_sync_hash)
-
-            elif k == "to_remove":
-                if original_status in status['fs_untracked']:
-                    file_path = os.path.join(
-                        plugin.local_fs_path,
-                        original_status.fs_path.strip("/"))
-                    assert not os.path.exists(file_path)
-                else:
-                    assert original_status.store_fs.file.exists is False
-                    assert original_status.store_fs.pk is None
 
     check_fs(plugin, response)
 
