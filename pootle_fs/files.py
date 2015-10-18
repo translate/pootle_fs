@@ -173,7 +173,7 @@ class FSFile(object):
         """
         store = self.store
         if store and store.pk:
-            store.delete()
+            store.makeobsolete()
         if self.fs_store.pk:
             self.fs_store.delete()
         self.remove_file()
