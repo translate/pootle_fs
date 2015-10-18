@@ -17,8 +17,10 @@ class TranslationFileFinder(object):
 
     path_mapping = PATH_MAPPING
 
-    def __init__(self, translation_path):
+    def __init__(self, translation_path, ext="po", template_ext=["pot"]):
         self.translation_path = translation_path
+        self.ext = ext
+        self.template_ext = template_ext
         self.validate_path()
         self.regex = re.compile(self._parse_path())
 
@@ -39,30 +41,36 @@ class TranslationFileFinder(object):
                     matched = match.groupdict()
                     matched["directory_path"] = (
                         matched.get("directory_path", "").strip("/"))
-                    if matched.get("filename"):
-                        matched["filename"] = (
-                            "%s%s"
-                            % (matched["filename"],
-                               os.path.splitext(file_path)[1]))
-                    yield file_path, matched
+                    if not matched.get("filename"):
+                        matched["filename"] = os.path.splitext(
+                            os.path.basename(filename))[0]
+                    if matched["ext"]:
+                        yield file_path, matched
 
     @lru_cache(maxsize=None)
     def match(self, file_path):
         return self.regex.match(file_path)
 
     @lru_cache(maxsize=None)
-    def reverse_match(self, lang, filename, directory_path=None):
+    def reverse_match(self, lang, filename, ext=None, directory_path=None):
+        if ext is None:
+            ext = self.ext
+        ext = ext.strip(".")
         path = self.translation_path
+        path = os.path.splitext(path)
+        path = "%s.%s" % (path[0], ext)
+
         matching = not (
             directory_path and "<directory_path>" not in path)
         if not matching:
             return
+
         path = (path.replace("<lang>",
                              lang)
                     .replace("<filename>",
-                             os.path.splitext(filename)[0]))
+                             filename))
         if "<directory_path>" in path:
-            if directory_path.strip("/"):
+            if directory_path and directory_path.strip("/"):
                 path = path.replace(
                     "<directory_path>", "/%s/" % directory_path.strip("/"))
             else:
@@ -90,6 +98,8 @@ class TranslationFileFinder(object):
             raise ValueError(
                 "Translation path must contain a <lang> pattern to match.")
 
+        # TODO: test for correct file extension
+
         stripped_path = (path.replace("<lang>", "")
                              .replace("<directory_path>", "")
                              .replace("<filename>", ""))
@@ -104,8 +114,17 @@ class TranslationFileFinder(object):
                 "Translation paths can only contain alpha-numeric characters, "
                 "_ or -: '%s'" % path)
 
+    def _ext_re(self):
+        return (
+            r".(?P<ext>(%s))"
+            % "|".join(
+                ("%s$" % x)
+                for x in [self.ext] + self.template_ext))
+
     def _parse_path(self):
         path = self.translation_path
         for k, v in self.path_mapping:
             path = path.replace(k, v)
-        return "%s$" % path
+        return "%s%s$" % (
+            os.path.splitext(path)[0],
+            self._ext_re())

@@ -27,25 +27,29 @@ ROOT_PATHS["foo/bar/baz-<filename>-<lang>.po"] = "foo/bar"
 MATCHES = OrderedDict()
 MATCHES["po/<lang>.po"] = (
     ["en.po",  "foo/bar/en.po"],
-    [("po/en.po", dict(lang="en"))])
+    [("po/en.po", dict(lang="en", ext="po"))])
 MATCHES["po-<filename>/<lang>.po"] = (
     ["en.po",  "po/en.po"],
-    [("po-foo/en.po", dict(lang="en", filename="foo"))])
+    [("po-foo/en.po", dict(lang="en", filename="foo", ext="po"))])
 MATCHES["po/<filename>-<lang>.po"] = (
     ["en.po",  "po/en.po"],
-    [("po/foo-en.po", dict(lang="en", filename="foo"))])
+    [("po/foo-en.po", dict(lang="en", filename="foo", ext="po"))])
 MATCHES["<lang>/<directory_path>/<filename>.po"] = (
     ["foo.po"],
     [("en/foo.po",
-      dict(lang="en", directory_path="", filename="foo")),
+      dict(lang="en", directory_path="", filename="foo", ext="po")),
+     ("en/foo.pot",
+      dict(lang="en", directory_path="", filename="foo", ext="pot")),
      ("en/bar/baz/foo.po",
-      dict(lang="en", directory_path="bar/baz", filename="foo"))])
+      dict(lang="en", directory_path="bar/baz", filename="foo", ext="po"))])
 MATCHES["<directory_path>/<lang>/<filename>.po"] = (
-    ["foo.po"],
+    ["foo.po", "en/foo.poo"],
     [("en/foo.po",
-      dict(lang="en", directory_path="", filename="foo")),
+      dict(lang="en", directory_path="", filename="foo", ext="po")),
+     ("en/foo.pot",
+      dict(lang="en", directory_path="", filename="foo", ext="pot")),
      ("bar/baz/en/foo.po",
-      dict(lang="en", directory_path="bar/baz", filename="foo"))])
+      dict(lang="en", directory_path="bar/baz", filename="foo", ext="po"))])
 
 FINDER_REGEXES = [
     "<lang>.po",
@@ -57,76 +61,96 @@ FILES = OrderedDict()
 FILES["gnu_style/po/<lang>.po"] = (
     ("gnu_style/po/zu.po",
      dict(lang="zu",
+          ext="po",
+          filename="zu",
           directory_path="")),
     ("gnu_style/po/en.po",
      dict(lang="en",
+          ext="po",
+          filename="en",
           directory_path="")))
 FILES["gnu_style_named_files/po/<filename>-<lang>.po"] = (
     ("gnu_style_named_files/po/example1-en.po",
      dict(lang="en",
-          filename="example1.po",
+          filename="example1",
+          ext="po",
           directory_path="")),
     ("gnu_style_named_files/po/example1-zu.po",
      dict(lang="zu",
-          filename="example1.po",
+          filename="example1",
+          ext="po",
           directory_path="")),
     ("gnu_style_named_files/po/example2-en.po",
      dict(lang="en",
-          filename="example2.po",
+          filename="example2",
+          ext="po",
           directory_path="")),
     ("gnu_style_named_files/po/example2-zu.po",
      dict(lang="zu",
-          filename="example2.po",
+          filename="example2",
+          ext="po",
           directory_path="")))
 FILES["gnu_style_named_folders/po-<filename>/<lang>.po"] = (
     ("gnu_style_named_folders/po-example1/en.po",
      dict(lang="en",
-          filename="example1.po",
+          filename="example1",
+          ext="po",
           directory_path="")),
     ("gnu_style_named_folders/po-example1/zu.po",
      dict(lang="zu",
-          filename="example1.po",
+          filename="example1",
+          ext="po",
           directory_path="")),
     ("gnu_style_named_folders/po-example2/en.po",
      dict(lang="en",
-          filename="example2.po",
+          filename="example2",
+          ext="po",
           directory_path="")),
     ("gnu_style_named_folders/po-example2/zu.po",
      dict(lang="zu",
-          filename="example2.po",
+          filename="example2",
+          ext="po",
           directory_path="")))
 FILES["non_gnu_style/locales/<lang>/<directory_path>/<filename>.po"] = (
     ("non_gnu_style/locales/en/example1.po",
      dict(lang="en",
-          filename="example1.po",
+          filename="example1",
+          ext="po",
           directory_path="")),
     ("non_gnu_style/locales/zu/example1.po",
      dict(lang="zu",
-          filename="example1.po",
+          filename="example1",
+          ext="po",
           directory_path="")),
     ("non_gnu_style/locales/en/example2.po",
      dict(lang="en",
-          filename="example2.po",
+          filename="example2",
+          ext="po",
           directory_path="")),
     ("non_gnu_style/locales/zu/example2.po",
      dict(lang="zu",
-          filename="example2.po",
+          filename="example2",
+          ext="po",
           directory_path="")),
     ("non_gnu_style/locales/en/subsubdir/example3.po",
      dict(lang="en",
-          filename="example3.po",
+          filename="example3",
+          ext="po",
           directory_path="subsubdir")),
     ("non_gnu_style/locales/zu/subsubdir/example3.po",
      dict(lang="zu",
-          filename="example3.po",
+          filename="example3",
+          ext="po",
           directory_path="subsubdir")),
     ("non_gnu_style/locales/en/subsubdir/example4.po",
      dict(lang="en",
-          filename="example4.po",
+          filename="example4",
+          ext="po",
           directory_path="subsubdir")),
     ("non_gnu_style/locales/zu/subsubdir/example4.po",
      dict(lang="zu",
-          filename="example4.po",
+          filename="example4",
+          ext="po",
           directory_path="subsubdir")))
 
 

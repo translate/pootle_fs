@@ -44,6 +44,8 @@ def test_finder_regex(finder_regexes):
     path = translation_path
     for k, v in TranslationFileFinder.path_mapping:
         path = path.replace(k, v)
+    path = os.path.splitext(path)
+    path = "%s%s" % (path[0], finder._ext_re())
     assert finder.regex.pattern == "%s$" % path
 
 
@@ -61,15 +63,17 @@ def test_finder_match(finder_matches):
         match = finder.match(os.path.join(dir_path, path))
         assert match
         named = match.groupdict()
-        for k in ["lang", "directory_path", "filename"]:
+        for k in ["lang", "directory_path", "filename", "ext"]:
             if k in expected:
                 assert named[k].strip("/") == expected[k]
             else:
                 assert k not in named
         reverse = finder.reverse_match(
             named['lang'],
-            named.get('filename', os.path.basename(path)),
-            named.get('directory_path'))
+            named.get('filename', os.path.splitext(os.path.basename(path))[0]),
+            named['ext'],
+            directory_path=named.get('directory_path'))
+
         assert os.path.join(dir_path, path) == reverse
 
 

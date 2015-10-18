@@ -234,8 +234,8 @@ class Plugin(object):
                 _pootle_path = "/".join(
                     ["", language.code, self.project.code]
                     + subdirs
-                    + [matched.get("filename")
-                       or os.path.basename(file_path)])
+                    + ["%s.%s" % (matched["filename"],
+                                  matched["ext"])])
                 if pootle_path is not None:
                     if not fnmatch(_pootle_path, pootle_path):
                         continue
@@ -250,7 +250,9 @@ class Plugin(object):
         return self.finder_class(
             os.path.join(
                 self.local_fs_path,
-                translation_path))
+                translation_path),
+            ext="po",
+            template_ext=["pot"])
 
     @lru_cache(maxsize=None)
     def get_fs_path(self, pootle_path):
@@ -271,14 +273,18 @@ class Plugin(object):
                 finder = self.get_finder(
                     config.get(subdirs[0], "translation_path"))
                 fs_path = finder.reverse_match(
-                    lang_code, filename, '/'.join(subdirs[1:]))
+                    lang_code,
+                    *os.path.splitext(filename),
+                    directory_path='/'.join(subdirs[1:]))
                 if fs_path:
                     fs_path = fs_path.replace(self.local_fs_path, "")
         if not fs_path:
             finder = self.get_finder(
                 config.get("default", "translation_path"))
             fs_path = finder.reverse_match(
-                lang_code, filename, '/'.join(subdirs))
+                lang_code,
+                *os.path.splitext(filename),
+                directory_path='/'.join(subdirs))
             if fs_path:
                 fs_path = fs_path.replace(self.local_fs_path, "")
         if fs_path:
