@@ -3,35 +3,56 @@
 Pootle FS Configuration
 -----------------------
 
-Configuring your project
-========================
+Configuring your project in Pootle
+==================================
 
 To set an FS plugin for a project, use the ``set_fs`` command:
 
 .. code-block:: bash
 
-   pootle fs $projectname set_fs $fs_type $fs_url
+   pootle fs MYPROJECT set_fs FS_TYPE FS_URL
 
-The ``$projectname`` must the name of a valid project in Pootle.
+``MYPROJECT`` must the name of a valid project in Pootle.
 
-The ``fs_type`` should be an installed and registered FS plugin type - such
+``FS_TYPE`` should be an installed and registered FS plugin type - such
 as ``git`` or ``local``.
 
-The ``fs_url`` must be a URL specific to the type of FS plugin you are using.
+``FS_URL`` must be a URL specific to the type of FS plugin you are using.
 
 
-Default configuration options in .ini file
-==========================================
+Creating a .pootle.ini on your filesystem
+=========================================
 
-.. code-block:: ini
+When pootle_fs first pulls your filesystem it looks for a file ``.pootle.ini``
+to set up the configuration of your project.
 
-   [default]
-   translation_path = /<lang>/<directory_path>/<filename>.po
+The configuration file uses the ``ini`` syntax.
+
+You can see the current configuration for your project as follows:
+
+.. code-block:: bash
+
+   pootle fs MYPROJECT config
+
+
+Updating the configuration
+==========================
+
+If you make changes to your ``.pootle.ini`` file they do not take affect until
+you have updated the configuration:
+
+.. code-block:: bash
+
+   pootle fs MYPROJECT config --update
+
 
 
 Defining a translation_path
 ===========================
 
 
+
+
 Defining a directory path
 =========================
+

@@ -1,7 +1,9 @@
 Pootle FS
 ---------
 
-Pootle FS app
+Pootle FS app provides a plugin framework for synchronizing external
+filesystems containing localisation files.
+
 
 .. image:: https://img.shields.io/travis/translate/pootle_fs.svg?style=flat-square
     :alt: Build Status
@@ -20,6 +22,7 @@ staged with any or all of:
 - ``add_translations``
 - ``fetch_translations``
 - ``rm_translations``
+- ``merge_translations``
 
 Changes to previously synced Stores/files are automatically staged for
 synchronisation, where no conflict exists.
@@ -27,24 +30,21 @@ synchronisation, where no conflict exists.
 Once the desired changes have been staged ``sync_translations`` is called to
 perform the synchronisation.
 
-The workflow for bringing translations from FS into Pootle is:
 
-.. code-block::
-   
-   fetch_translations  >>>  sync_translations
+Installation
+============
 
-Where ``fetch_translations`` will stage the importable translations, and
-``sync_translations`` will actually sync to the database.
+``pootle_fs`` does not provide any specific plugins so need to install
+a backend plugin also.
 
+Currently the only implemented plugin is for `Git <./docs/plugins/git.rst>`_
 
-The workflow for sending translations from Pootle to the FS:
+Neither ``pootle_fs`` nor ``pootle_fs_git`` are on Pypi so only dev install
+is possible.
 
-.. code-block::
-   
-   add_translations  >>>  sync_translations
+Also requires the ``no_mtime`` branch of pootle:
 
-Where ``add_translations`` will stage the exportable translations, and
-``sync_translations`` will actually sync to the FS.
+`<https://github.com/phlax/pootle/tree/no_mtime>`_
 
 
 Further reading
@@ -55,6 +55,7 @@ Further reading
 - `Status <docs/status.rst>`_
 - `Commands <docs/commands.rst>`_
 - `Response <docs/response.rst>`_
+- `Git plugin <docs/plugins/git.rst>`_
 
 
 Related software
