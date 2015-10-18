@@ -1,10 +1,10 @@
 from .fixtures.base import (
-    root, projects, english, zulu, tutorial, english_tutorial, po_directory,
-    english_tutorial_fs, en_tutorial_po, en_tutorial_fs_po, system, member,
-    tutorial_fs, en_tutorial_po_fs_store, delete_pattern)
-(root, projects, english, zulu, tutorial, english_tutorial, po_directory,
- english_tutorial_fs, en_tutorial_po, en_tutorial_fs_po, system, member,
- tutorial_fs, en_tutorial_po_fs_store, delete_pattern)
+    root, projects, english, zulu, spanish, tutorial, english_tutorial,
+    po_directory, english_tutorial_fs, en_tutorial_po, en_tutorial_fs_po,
+    system, member, tutorial_fs, en_tutorial_po_fs_store, delete_pattern)
+(root, projects, english, spanish, zulu, tutorial, english_tutorial,
+ po_directory, english_tutorial_fs, en_tutorial_po, en_tutorial_fs_po, system,
+ member, tutorial_fs, en_tutorial_po_fs_store, delete_pattern)
 
 from .fixtures.finder import (
     BAD_FINDER_PATHS, ROOT_PATHS, FINDER_REGEXES, FILES, MATCHES,

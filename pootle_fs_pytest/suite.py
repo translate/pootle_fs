@@ -3,8 +3,6 @@ import os
 
 from translate.storage.factory import getclass
 
-from .utils import create_test_suite
-
 
 def check_files_match(src, response):
     from pootle_fs.models import StoreFS

@@ -62,7 +62,16 @@ class Plugin(object):
 
     @cached_property
     def lang_mapper(self):
-        return self.language_mapper_class(self)
+        config = self.read_config()
+        if config.has_option("default", "lang_mapping"):
+            mapping = [
+                x.strip()
+                for x
+                in config.get("default", "lang_mapping").split("\n")
+                if x.strip()]
+        else:
+            mapping = []
+        return self.language_mapper_class(mapping)
 
     @property
     def local_fs_path(self):
@@ -213,7 +222,7 @@ class Plugin(object):
                 if fs_path is not None:
                     if not fnmatch(path, fs_path):
                         continue
-                language = self.lang_mapper.get_lang(matched['lang'])
+                language = self.lang_mapper[matched['lang']]
                 if not language:
                     missing_langs.add(matched['lang'])
                     continue
@@ -252,7 +261,7 @@ class Plugin(object):
         :returns: An filepath relative to the FS root.
         """
         parts = pootle_path.strip("/").split("/")
-        lang_code = parts[0]
+        lang_code = self.lang_mapper.get_fs_code(parts[0])
         subdirs = parts[2:-1]
         filename = parts[-1]
         fs_path = None
@@ -405,6 +414,8 @@ class Plugin(object):
             self.fs.pootle_config,
             File(io.BytesIO(self.read(self.fs.pootle_config))))
         self.read_config.cache_clear()
+        if "lang_mapper" in self.__dict__:
+            del self.__dict__["lang_mapper"]
 
     @lru_cache(maxsize=None)
     def read_config(self):

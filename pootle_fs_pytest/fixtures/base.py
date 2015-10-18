@@ -33,6 +33,12 @@ def english(root):
 
 
 @pytest.fixture
+def spanish(root):
+    """Require the Spanish language."""
+    return _require_language('es', 'Spanish')
+
+
+@pytest.fixture
 def zulu(root):
     """Require the English language."""
     return _require_language('zu', 'Zulu')
