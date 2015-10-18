@@ -8,3 +8,4 @@ coveralls
 MySQL-python
 psycopg2
 pep8
+flake8

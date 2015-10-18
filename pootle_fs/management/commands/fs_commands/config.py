@@ -18,14 +18,17 @@ class ConfigCommand(SubCommand):
 
     shared_option_list = (
         make_option('-u', '--update', action='store_true', dest='update',
-                    help='Status type'),
-        )
+                    help='Status type'), )
     option_list = SubCommand.option_list + shared_option_list
 
     def handle(self, project_code, *args, **options):
         if options["update"]:
             self.get_fs(project_code).plugin.update_config()
+            self.stdout.write("Config updated")
+            return
         config = io.BytesIO()
         self.get_fs(project_code).read_config().write(config)
         config.seek(0)
-        self.stdout.write(config.read())
+        conf = config.read()
+        config.seek(0)
+        self.stdout.write(conf)

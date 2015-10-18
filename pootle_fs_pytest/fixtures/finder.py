@@ -26,13 +26,13 @@ ROOT_PATHS["foo/bar/baz-<filename>-<lang>.po"] = "foo/bar"
 
 MATCHES = OrderedDict()
 MATCHES["po/<lang>.po"] = (
-    ["en.po",  "foo/bar/en.po"],
+    ["en.po", "foo/bar/en.po"],
     [("po/en.po", dict(lang="en", ext="po"))])
 MATCHES["po-<filename>/<lang>.po"] = (
-    ["en.po",  "po/en.po"],
+    ["en.po", "po/en.po"],
     [("po-foo/en.po", dict(lang="en", filename="foo", ext="po"))])
 MATCHES["po/<filename>-<lang>.po"] = (
-    ["en.po",  "po/en.po"],
+    ["en.po", "po/en.po"],
     [("po/foo-en.po", dict(lang="en", filename="foo", ext="po"))])
 MATCHES["<lang>/<directory_path>/<filename>.po"] = (
     ["foo.po"],

@@ -27,6 +27,7 @@ before_script:
  
 script:
   - py.test --cov=. -vv
+  - flake8 . --config=.flake8
 
 after_success:
   coveralls

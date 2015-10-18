@@ -17,9 +17,9 @@ class StatusCommand(TranslationsSubCommand):
     __status__ = None
 
     shared_option_list = (
-        make_option('-t', '--type', action='append', dest='status_type',
-                    help='Status type'),
-        )
+        make_option(
+            '-t', '--type', action='append', dest='status_type',
+            help='Status type'), )
     option_list = TranslationsSubCommand.option_list + shared_option_list
 
     @property
@@ -118,7 +118,37 @@ class StatusCommand(TranslationsSubCommand):
                 "  %s" % status.pootle_path,
                 self.style.FS_UPDATED)
             self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("(%s)" % status.fs_path)
+            self.stdout.write("%s" % status.fs_path)
+
+    def handle_merge_fs(self):
+        for status in self.status["merge_fs"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path,
+                self.style.FS_UPDATED)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write(
+                "%s" % status.fs_path,
+                self.style.FS_UPDATED)
+
+    def handle_merge_pootle(self):
+        for status in self.status["merge_pootle"]:
+            self.stdout.write(
+                "  %s" % status.pootle_path,
+                self.style.FS_UPDATED)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write(
+                "%s" % status.fs_path,
+                self.style.FS_UPDATED)
+
+    def handle_to_remove(self):
+        for status in self.status["to_remove"]:
+            self.stdout.write(
+                "  (%s)" % status.pootle_path,
+                self.style.FS_MISSING)
+            self.stdout.write("   <-->  ", ending="")
+            self.stdout.write(
+                "(%s)" % status.fs_path,
+                self.style.FS_MISSING)
 
     def handle(self, project_code, *args, **options):
         self.fs = self.get_fs(project_code)

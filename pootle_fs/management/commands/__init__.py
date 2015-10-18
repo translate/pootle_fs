@@ -10,6 +10,7 @@
 from optparse import make_option
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils.functional import cached_property
 
 from pootle_project.models import Project
 
@@ -44,13 +45,11 @@ class TranslationsSubCommand(SubCommand):
             '-P', '--pootle_path', action='store', dest='pootle_path',
             help='Filter translations by Pootle path'))
     option_list = SubCommand.option_list + shared_option_list
-    __plugin__ = None
 
-    @property
+    @cached_property
     def plugin(self):
-        if not self.__plugin__ and hasattr(self, "fs"):
-            self.__plugin__ = self.fs.plugin
-        return self.__plugin__
+        if hasattr(self, "fs"):
+            return self.fs.plugin
 
     def handle_actions(self, action_type):
         failed = self.response.failed(action_type)

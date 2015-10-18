@@ -416,12 +416,14 @@ class Plugin(object):
 
     def update_config(self):
         self.pull()
+        config = self.read(self.fs.pootle_config)
         self.fs.current_config.save(
             self.fs.pootle_config,
-            File(io.BytesIO(self.read(self.fs.pootle_config))))
+            File(io.BytesIO(config)))
         self.read_config.cache_clear()
         if "lang_mapper" in self.__dict__:
             del self.__dict__["lang_mapper"]
+        return config
 
     @lru_cache(maxsize=None)
     def read_config(self):
@@ -432,8 +434,10 @@ class Plugin(object):
         """
         config = ConfigParser()
         if not self.fs.current_config:
-            self.update_config()
-        config.readfp(io.BytesIO(self.fs.current_config.file.read()))
+            _conf = self.update_config()
+        else:
+            _conf = self.fs.current_config.file.read()
+        config.readfp(io.BytesIO(_conf))
         return config
 
     def status(self, fs_path=None, pootle_path=None):

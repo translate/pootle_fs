@@ -18,8 +18,7 @@ class MergeTranslationsCommand(TranslationsSubCommand):
     shared_option_list = (
         make_option('--pootle-wins',
                     action='store_true', dest='pootle_wins',
-                    help='Status type'),
-        )
+                    help='Status type'), )
     option_list = TranslationsSubCommand.option_list + shared_option_list
 
     def handle(self, project_code, *args, **options):
