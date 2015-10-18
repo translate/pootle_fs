@@ -9,6 +9,10 @@ filesystems containing localisation files.
     :alt: Build Status
     :target: https://travis-ci.org/translate/pootle_fs
 
+.. image:: https://coveralls.io/repos/translate/pootle_fs/badge.png?branch=master
+    :alt: Coverage Status
+    :target: https://coveralls.io/r/translate/pootle_fs?branch=master
+
 An FS can be either a local filesystem or a VCS system such as git, svn, hg or
 cvs.
 

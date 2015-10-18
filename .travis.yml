@@ -26,6 +26,10 @@ before_script:
   - if [[ $DATABASE_BACKEND == 'mysql_innodb' ]]; then mysql -e "SET GLOBAL wait_timeout = 36000;"; fi
  
 script:
-  - py.test -vv
+  - py.test --cov=. -vv
+
+after_success:
+  coveralls
+
 services:
   - redis-server

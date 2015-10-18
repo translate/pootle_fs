@@ -26,8 +26,6 @@ MANIFEST.in
 .reqs
 requirements/min-versions.txt
 
-# Coverage
-.coverage*
 
 ##############################
 # translate/ specific excludes

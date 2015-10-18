@@ -1,0 +1,6 @@
+[run]
+omit =
+    tests/*
+    pootle_fs_pytest/*
+    pootle_fs/migrations/*
+    setup.py
