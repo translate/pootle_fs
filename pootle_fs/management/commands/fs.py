@@ -48,7 +48,6 @@ from .fs_commands.add_translations import AddTranslationsCommand
 from .fs_commands.config import ConfigCommand
 from .fs_commands.info import ProjectInfoCommand
 from .fs_commands.fetch_translations import FetchTranslationsCommand
-from .fs_commands.files import FilesCommand
 from .fs_commands.merge_translations import MergeTranslationsCommand
 from .fs_commands.rm_translations import RmTranslationsCommand
 from .fs_commands.set_fs import SetFSCommand
@@ -66,7 +65,6 @@ class Command(BaseCommand):
         "config": ConfigCommand,
         "info": ProjectInfoCommand,
         "fetch_translations": FetchTranslationsCommand,
-        "files": FilesCommand,
         "merge_translations": MergeTranslationsCommand,
         "rm_translations": RmTranslationsCommand,
         "set_fs": SetFSCommand,
