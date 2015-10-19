@@ -22,8 +22,8 @@ class MergeTranslationsCommand(TranslationsSubCommand):
     option_list = TranslationsSubCommand.option_list + shared_option_list
 
     def handle(self, project_code, *args, **options):
-        self.handle_response(
-            self.get_fs(project_code).merge_translations(
+        return self.handle_response(
+            self.get_fs(project_code).plugin.merge_translations(
                 fs_path=options['fs_path'],
                 pootle_path=options['pootle_path'],
-                pootle_win=options["pootle_wins"]))
+                pootle_wins=options["pootle_wins"]))

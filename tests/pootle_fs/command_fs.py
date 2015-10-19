@@ -82,6 +82,52 @@ def _test_status(status, out):
     assert out == expected
 
 
+def _test_response(response, out, err):
+    expected = ""
+
+    if response is None:
+        raise Exception
+
+    def _response_line(action):
+        fs_exists = [
+            "pulled_to_pootle", "pushed_to_fs",
+            "staged_for_merge_fs", "staged_for_merge_pootle",
+            "merged_from_fs", "merged_from_pootle"]
+
+        store_exists = [
+            "pulled_to_pootle", "pushed_to_fs",
+            "staged_for_merge_fs", "staged_for_merge_pootle",
+            "merged_from_fs", "merged_from_pootle"]
+        if action.action_type in fs_exists:
+            fs_path = action.fs_path
+        else:
+            fs_path = "(%s)" % action.fs_path
+        if action.action_type in store_exists:
+            pootle_path = action.pootle_path
+        else:
+            pootle_path = "(%s)" % action.pootle_path
+        return (
+            "  %s\n   <-->  %s"
+            % (pootle_path, fs_path))
+
+    if not response.made_changes:
+        assert out == "No changes made\n"
+        return
+
+    for k in response:
+        title = response.get_action_title(k)
+        description = response.get_action_description(k)
+        expected += (
+            "%s\n%s\n%s\n\n%s\n\n"
+            % (title,
+               "-" * len(title),
+               description,
+               "\n".join([_response_line(action)
+                          for action in response[k]])))
+
+    assert out == expected
+
+
 @pytest.mark.django
 def test_command_status_fetch(fs_plugin_suite, capsys):
     plugin = fs_plugin_suite
@@ -240,3 +286,33 @@ def test_command_set_fs(fs_plugin, capsys):
 
     # changing the fs_type/url results in the local_fs being deleted
     assert plugin.is_cloned is False
+
+
+@pytest.mark.django
+def test_command_merge_translations_fs(fs_plugin_suite, capsys):
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "merge_translations"),
+        *capsys.readouterr())
+
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "sync_translations"),
+        *capsys.readouterr())
+
+
+@pytest.mark.django
+def test_command_merge_translations_pootle(fs_plugin_suite, capsys):
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "merge_translations", pootle_wins=True),
+        *capsys.readouterr())
+
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "sync_translations"),
+        *capsys.readouterr())

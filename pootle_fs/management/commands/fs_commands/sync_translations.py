@@ -14,7 +14,7 @@ class SyncTranslationsCommand(TranslationsSubCommand):
     help = "Sync translations into Pootle from FS."
 
     def handle(self, project_code, *args, **options):
-        self.handle_response(
+        return self.handle_response(
             self.get_fs(project_code).sync_translations(
                 fs_path=options['fs_path'],
                 pootle_path=options['pootle_path']))
