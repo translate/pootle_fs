@@ -14,6 +14,16 @@ from pootle_project.models import Project
 from pootle_store.models import Store
 
 
+def validate_project_fs(**kwargs):
+    from . import plugins
+    fs_type = kwargs.get("fs_type")
+    if fs_type is None:
+        raise ValidationError("Plugin must be set")
+    if fs_type not in plugins:
+        raise ValidationError("Unrecognised plugin: %s" % fs_type)
+    return kwargs
+
+
 def validate_store_fs(**kwargs):
     store = kwargs.get("store")
     project = kwargs.get("project")
@@ -87,16 +97,6 @@ class StoreFSManager(models.Manager):
     def create(self, *args, **kwargs):
         kwargs = validate_store_fs(**kwargs)
         return super(StoreFSManager, self).create(*args, **kwargs)
-
-
-def validate_project_fs(**kwargs):
-    from . import plugins
-    fs_type = kwargs.get("fs_type")
-    if fs_type is None:
-        raise ValidationError("Plugin must be set")
-    if fs_type not in plugins:
-        raise ValidationError("Unrecognised plugin: %s" % fs_type)
-    return kwargs
 
 
 class ProjectFSManager(models.Manager):

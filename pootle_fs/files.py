@@ -103,6 +103,14 @@ class FSFile(object):
         return self.fs.plugin
 
     @property
+    def pootle_changed(self):
+        return (
+            self.store
+            and (
+                self.store.get_max_unit_revision()
+                != self.fs_store.last_sync_revision))
+
+    @property
     def project(self):
         return self.fs_store.project
 
@@ -125,14 +133,6 @@ class FSFile(object):
                 language=self.language)
         except TranslationProject.DoesNotExist:
             return
-
-    @property
-    def pootle_changed(self):
-        return (
-            self.store
-            and (
-                self.store.get_max_unit_revision()
-                != self.fs_store.last_sync_revision))
 
     def add(self):
         logger.debug("Adding file: %s" % self.path)

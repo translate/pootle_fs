@@ -46,7 +46,7 @@ class StoreFS(models.Model):
 
     @property
     def file(self):
-        return self.fs.fs_file(self)
+        return self.fs.plugin.file_class(self)
 
     @cached_property
     def fs(self):
@@ -86,9 +86,6 @@ class ProjectFS(models.Model):
         except KeyError:
             raise MissingPluginError(
                 "No such plugin: %s" % self.fs_type)
-
-    def fs_file(self, fs_store):
-        return self.plugin.file_class(fs_store)
 
     def save(self, *args, **kwargs):
         validate_project_fs(

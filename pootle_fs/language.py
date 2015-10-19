@@ -61,9 +61,6 @@ class LanguageMapper(object):
                 return fs_code
         return pootle_code
 
-    def get_pootle_code(self, lang_code):
-        return self.lang_mappings.get(lang_code, lang_code)
-
     @lru_cache(maxsize=None)
     def get_lang(self, lang_code):
         try:
@@ -71,6 +68,9 @@ class LanguageMapper(object):
                 code=self.get_pootle_code(lang_code))
         except Language.DoesNotExist:
             return None
+
+    def get_pootle_code(self, lang_code):
+        return self.lang_mappings.get(lang_code, lang_code)
 
     def _parse_lang_mappings(self, mapping):
         _mapping = {}
