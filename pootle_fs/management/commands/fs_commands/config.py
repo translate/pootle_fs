@@ -27,7 +27,7 @@ class ConfigCommand(SubCommand):
             self.stdout.write("Config updated")
             return
         config = io.BytesIO()
-        self.get_fs(project_code).read_config().write(config)
+        self.get_fs(project_code).plugin.read_config().write(config)
         config.seek(0)
         conf = config.read()
         config.seek(0)

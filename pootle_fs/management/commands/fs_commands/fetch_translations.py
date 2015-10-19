@@ -25,7 +25,7 @@ class FetchTranslationsCommand(TranslationsSubCommand):
 
     def handle(self, project_code, *args, **options):
         self.handle_response(
-            self.get_fs(project_code).fetch_translations(
+            self.get_fs(project_code).plugin.fetch_translations(
                 force=options["force"],
                 fs_path=options['fs_path'],
                 pootle_path=options['pootle_path']))

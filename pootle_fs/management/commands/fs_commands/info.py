@@ -19,6 +19,6 @@ class ProjectInfoCommand(SubCommand):
         self.stdout.write("type: %s" % fs.fs_type)
         self.stdout.write("URL: %s" % fs.url)
         self.stdout.write("enabled: %s" % fs.enabled)
-        self.stdout.write("latest commit: %s" % fs.get_latest_hash())
+        self.stdout.write("latest commit: %s" % fs.plugin.get_latest_hash())
         self.stdout.write("fetch frequency: %s" % fs.fetch_frequency)
         self.stdout.write("push frequency: %s" % fs.push_frequency)

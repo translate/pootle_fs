@@ -15,6 +15,6 @@ class SyncTranslationsCommand(TranslationsSubCommand):
 
     def handle(self, project_code, *args, **options):
         return self.handle_response(
-            self.get_fs(project_code).sync_translations(
+            self.get_fs(project_code).plugin.sync_translations(
                 fs_path=options['fs_path'],
                 pootle_path=options['pootle_path']))

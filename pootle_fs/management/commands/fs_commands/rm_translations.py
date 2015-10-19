@@ -14,7 +14,7 @@ class RmTranslationsCommand(TranslationsSubCommand):
     help = "Rm translations into Pootle from FS."
 
     def handle(self, project_code, *args, **options):
-        self.handle_response(
-            self.get_fs(project_code).rm_translations(
+        return self.handle_response(
+            self.get_fs(project_code).plugin.rm_translations(
                 fs_path=options['fs_path'],
                 pootle_path=options['pootle_path']))
