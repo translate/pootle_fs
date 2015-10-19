@@ -16,7 +16,7 @@ from pootle_store.models import Store
 from .files import FSFile
 from .finder import TranslationFileFinder
 from .language import LanguageMapper
-from .models import FS_WINS, POOTLE_WINS
+from .models import FS_WINS, POOTLE_WINS, ProjectFS
 from .status import ProjectFSStatus, ActionResponse
 
 
@@ -449,6 +449,9 @@ class Plugin(object):
         self.pull()
         return self.status_class(
             self, fs_path=fs_path, pootle_path=pootle_path)
+
+    def reload(self):
+        self.fs = ProjectFS.objects.get(pk=self.fs.pk)
 
     def remove_file(self, path):
         os.unlink(

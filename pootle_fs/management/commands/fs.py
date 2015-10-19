@@ -96,7 +96,7 @@ class Command(BaseCommand):
                         defaults[opt.dest] = opt.default
                 defaults.update(kwargs)
                 return subcommand.execute(
-                    project_code, *(args or ['info']), **defaults)
+                    project_code, *args[1:], **defaults)
         return super(Command, self).execute(*args, **kwargs)
 
     def handle(self, *args, **kwargs):

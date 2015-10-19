@@ -12,7 +12,7 @@ import os
 
 import pytest
 
-from django.core.management import call_command
+from django.core.management import call_command, CommandError
 
 from pootle_fs.models import ProjectFS
 
@@ -209,3 +209,34 @@ def test_command_config(fs_plugin_suite, capsys):
     call_command("fs", plugin.project.code, "config")
     out, err = capsys.readouterr()
     assert out.strip() == saved_conf
+
+
+@pytest.mark.django
+def test_command_set_fs(fs_plugin, capsys):
+    plugin = fs_plugin
+
+    plugin.pull()
+    assert plugin.is_cloned
+
+    with pytest.raises(CommandError):
+        call_command("fs", "tutorial", "set_fs")
+
+    with pytest.raises(CommandError):
+        call_command("fs", "tutorial", "set_fs", "foo")
+
+    with pytest.raises(CommandError):
+        call_command("fs", "tutorial", "set_fs", "foo", "bar")
+
+    # "example" plugin is registered so this works...
+    call_command("fs", "tutorial", "set_fs", "example", "bar")
+
+    # at this point the plugin.fs is stale
+    assert plugin.fs.url != "bar"
+
+    plugin.reload()
+
+    # but now the url should be set
+    assert plugin.fs.url == "bar"
+
+    # changing the fs_type/url results in the local_fs being deleted
+    assert plugin.is_cloned is False
