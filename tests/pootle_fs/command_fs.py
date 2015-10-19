@@ -89,23 +89,42 @@ def _test_response(response, out, err):
         raise Exception
 
     def _response_line(action):
-        fs_exists = [
-            "pulled_to_pootle", "pushed_to_fs",
+
+        fs_exists_actions = [
+            "pulled_to_pootle", "pushed_to_fs", "fetched_from_fs",
             "staged_for_merge_fs", "staged_for_merge_pootle",
             "merged_from_fs", "merged_from_pootle"]
 
-        store_exists = [
-            "pulled_to_pootle", "pushed_to_fs",
+        store_exists_actions = [
+            "pulled_to_pootle", "pushed_to_fs", "added_from_pootle",
             "staged_for_merge_fs", "staged_for_merge_pootle",
             "merged_from_fs", "merged_from_pootle"]
-        if action.action_type in fs_exists:
+
+        file_exists = (
+            action.action_type in fs_exists_actions
+            or (action.original_status.status
+                in ["conflict", "conflict_untracked"])
+            or (action.action_type == "staged_for_removal"
+                and (action.original_status.status
+                     in ["fs_untracked", "pootle_removed"])))
+
+        store_exists = (
+            action.action_type in store_exists_actions
+            or (action.original_status.status
+                in ["conflict", "conflict_untracked"])
+            or (action.action_type == "staged_for_removal"
+                and (action.original_status.status
+                     in ["pootle_untracked", "fs_removed"])))
+
+        if file_exists:
             fs_path = action.fs_path
         else:
             fs_path = "(%s)" % action.fs_path
-        if action.action_type in store_exists:
+        if store_exists:
             pootle_path = action.pootle_path
         else:
             pootle_path = "(%s)" % action.pootle_path
+
         return (
             "  %s\n   <-->  %s"
             % (pootle_path, fs_path))
@@ -124,7 +143,6 @@ def _test_response(response, out, err):
                description,
                "\n".join([_response_line(action)
                           for action in response[k]])))
-
     assert out == expected
 
 
@@ -316,3 +334,123 @@ def test_command_merge_translations_pootle(fs_plugin_suite, capsys):
             "fs", fs_plugin_suite.project.code,
             "sync_translations"),
         *capsys.readouterr())
+
+
+@pytest.mark.django
+def test_command_rm_translations(fs_plugin_suite, capsys):
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "rm_translations"),
+        *capsys.readouterr())
+
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "sync_translations"),
+        *capsys.readouterr())
+
+
+@pytest.mark.django
+def test_command_add_translations(fs_plugin_suite, capsys):
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "add_translations"),
+        *capsys.readouterr())
+
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "sync_translations"),
+        *capsys.readouterr())
+
+
+@pytest.mark.django
+def test_command_add_translations_force(fs_plugin_suite, capsys):
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "add_translations", force=True),
+        *capsys.readouterr())
+
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "sync_translations"),
+        *capsys.readouterr())
+
+
+@pytest.mark.django
+def test_command_fetch_translations(fs_plugin_suite, capsys):
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "fetch_translations"),
+        *capsys.readouterr())
+
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "sync_translations"),
+        *capsys.readouterr())
+
+
+@pytest.mark.django
+def test_command_fetch_translations_force(fs_plugin_suite, capsys):
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "fetch_translations", force=True),
+        *capsys.readouterr())
+
+    _test_response(
+        call_command(
+            "fs", fs_plugin_suite.project.code,
+            "sync_translations"),
+        *capsys.readouterr())
+
+
+@pytest.mark.django
+def test_command_fs_no_projects(tutorial, capsys):
+    call_command("fs")
+    out, err = capsys.readouterr()
+    assert out == "No projects configured\n"
+
+
+@pytest.mark.django
+def test_command_fs_bad_project(fs_plugin_suite, capsys):
+    with pytest.raises(CommandError):
+        call_command(
+            "fs", "BAD_PROJECT_CODE")
+
+    with pytest.raises(CommandError):
+        call_command(
+            "fs", "tutorial", "BAD_SUBCOMMAND")
+
+
+@pytest.mark.django
+def test_command_fs_argv_subcommands(fs_plugin_suite, capsys):
+    from pootle_fs.management.commands.fs import Command
+    command = Command().run_from_argv
+
+    with pytest.raises(SystemExit):
+        command(
+            ["pootle", "fs", "BAD_PROJECT_CODE"])
+
+    with pytest.raises(SystemExit):
+        command(
+            ["pootle", "fs", "tutorial", "BAD_SUBCOMMAND"])
+
+    out, err = capsys.readouterr()
+    command(["pootle", "fs"])
+    out, err = capsys.readouterr()
+    plugins = [
+        project_fs.plugin for project_fs
+        in ProjectFS.objects.all()]
+    expected = (
+        "%s\n"
+        % '\n'.join(
+            ["%s\t%s" % (plugin.project.code, plugin.fs.url)
+             for plugin in plugins]))
+    assert out == expected

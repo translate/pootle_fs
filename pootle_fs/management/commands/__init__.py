@@ -55,6 +55,50 @@ class TranslationsSubCommand(SubCommand):
         if hasattr(self, "fs"):
             return self.fs.plugin
 
+    def handle_added_from_pootle(self, action):
+        self.stdout.write(
+            "  %s" % action.pootle_path)
+        if action.original_status.status in ["conflict", "conflict_untracked"]:
+            self.stdout.write(
+                "   <-->  %s" % action.fs_path)
+        else:
+            self.stdout.write(
+                "   <-->  (%s)" % action.fs_path, self.style.FS_MISSING)
+
+    def handle_fetched_from_fs(self, action):
+        if action.original_status.status in ["conflict", "conflict_untracked"]:
+            self.stdout.write(
+                "  %s" % action.pootle_path)
+        else:
+            self.stdout.write(
+                "  (%s)" % action.pootle_path, self.style.FS_MISSING)
+        self.stdout.write(
+            "   <-->  %s" % action.fs_path)
+
+    def handle_staged_for_removal(self, action):
+        file_exists = (
+            action.original_status.status
+            in ["fs_untracked", "pootle_removed", "conflict_untracked"])
+        store_exists = (
+            action.original_status.status
+            in ["pootle_untracked", "fs_removed", "conflict_untracked"])
+        if file_exists:
+            fs_path = action.fs_path
+        else:
+            fs_path = "(%s)" % action.fs_path
+        if store_exists:
+            pootle_path = action.pootle_path
+        else:
+            pootle_path = "(%s)" % action.pootle_path
+        self.stdout.write("  %s" % pootle_path)
+        self.stdout.write("   <-->  %s" % fs_path)
+
+    def handle_removed(self, action):
+        self.stdout.write(
+            "  (%s)" % action.pootle_path, self.style.FS_MISSING)
+        self.stdout.write(
+            "   <-->  (%s)" % action.fs_path, self.style.FS_MISSING)
+
     def handle_actions(self, action_type):
         failed = self.response.failed(action_type)
         title = self.response.get_action_title(action_type)
@@ -66,8 +110,12 @@ class TranslationsSubCommand(SubCommand):
         self.stdout.write(self.response.get_action_description(action_type))
         self.stdout.write("")
         for action in self.response.completed(action_type):
-            self.stdout.write("  %s" % action.pootle_path)
-            self.stdout.write("   <-->  %s" % action.fs_path)
+            handler = getattr(self, "handle_%s" % action_type, None)
+            if handler:
+                handler(action)
+            else:
+                self.stdout.write("  %s" % action.pootle_path)
+                self.stdout.write("   <-->  %s" % action.fs_path)
         for action in failed:
             self.stdout.write(
                 "  %s" % action.pootle_path, self.style.FS_ERROR)

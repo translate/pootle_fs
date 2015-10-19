@@ -100,13 +100,17 @@ class Command(BaseCommand):
         return super(Command, self).execute(*args, **kwargs)
 
     def handle(self, *args, **kwargs):
+        any_configured = False
         for project in Project.objects.all():
             try:
                 self.stdout.write(
                     "%s\t%s"
                     % (project.code, project.fs.get().url))
+                any_configured = True
             except ProjectFS.DoesNotExist:
                 pass
+        if not any_configured:
+            self.stdout.write("No projects configured")
 
     def run_from_argv(self, argv):
         """
