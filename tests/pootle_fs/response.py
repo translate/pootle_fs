@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) Pootle contributors.
@@ -9,7 +8,75 @@
 
 import pytest
 
-from pootle_fs.response import FS_ACTION, ActionResponse
+from pootle_store.models import Store
+
+from pootle_fs.response import FS_ACTION, ActionResponse, ActionStatus
+from pootle_fs.status import Status
+from pootle_fs.models import StoreFS
+
+
+def _test_response(response):
+    for k in response:
+        assert all(
+            isinstance(a, ActionStatus)
+            for a in response[k])
+        assert all(
+            isinstance(a.store_fs, StoreFS)
+            for a in response[k]
+            if a.store_fs)
+        assert all(
+            isinstance(a.store, Store)
+            for a in response[k]
+            if a.store)
+        assert all(
+            isinstance(a.original_status, Status)
+            for a in response[k])
+        for action in response[k]:
+            assert action.action_type == k
+            assert action.complete is True
+            assert action.failed is False
+            assert action.plugin == action.original_status.plugin
+            assert action.project == action.original_status.project
+            assert action.original_status.store_fs == action.store_fs
+            if action.original_status.store:
+                assert action.original_status.store == action.store
+            assert action.original_status.pootle_path == action.pootle_path
+            assert action.original_status.fs_path == action.fs_path
+
+
+@pytest.mark.django
+def test_response_action_add_fetch(fs_plugin_suite):
+    plugin = fs_plugin_suite
+    plugin.status()
+    _test_response(plugin.sync_translations())
+    _test_response(plugin.add_translations())
+    _test_response(plugin.sync_translations())
+    _test_response(plugin.fetch_translations())
+    _test_response(plugin.sync_translations())
+
+
+@pytest.mark.django
+def test_response_action_rm(fs_plugin_suite):
+    plugin = fs_plugin_suite
+    plugin.status()
+    _test_response(plugin.rm_translations())
+    _test_response(plugin.sync_translations())
+
+
+@pytest.mark.django
+def test_response_action_merge(fs_plugin_suite):
+    plugin = fs_plugin_suite
+    plugin.status()
+    _test_response(plugin.merge_translations())
+    _test_response(plugin.sync_translations())
+
+
+@pytest.mark.django
+def test_response_action_merge_pootle(fs_plugin_suite):
+    plugin = fs_plugin_suite
+    plugin.status()
+    _test_response(plugin.merge_translations(pootle_wins=True))
+    _test_response(plugin.sync_translations())
 
 
 @pytest.mark.django

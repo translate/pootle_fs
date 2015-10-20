@@ -47,6 +47,12 @@ class Plugin(object):
                 "pootle_fs.Plugin expects a ProjectFS")
         self.fs = fs
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if self.name == other.name:
+                return True
+        return False
+
     @property
     def addable_translations(self):
         for store in self.stores.filter(fs__isnull=True):

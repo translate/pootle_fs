@@ -15,6 +15,8 @@ import os
 from django.utils.functional import cached_property
 from django.utils.lru_cache import lru_cache
 
+from pootle_project.models import Project
+
 from .models import FS_WINS, POOTLE_WINS
 
 
@@ -107,6 +109,20 @@ class Status(object):
         if not self.fs_path or not self.pootle_path:
             raise ValueError(
                 "Status class requires fs_path and pootle_path to be set")
+
+    @property
+    def plugin(self):
+        if self.store_fs:
+            return self.store_fs.fs.plugin
+        return self.project.fs.get().plugin
+
+    @property
+    def project(self):
+        if self.store_fs:
+            return self.store_fs.project
+        else:
+            return Project.objects.get(
+                code=self.pootle_path.strip("/").split("/")[1])
 
 
 class ProjectFSStatus(object):

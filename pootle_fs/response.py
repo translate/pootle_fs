@@ -104,6 +104,14 @@ class ActionStatus(Status):
         return self.original_status.pootle_path
 
     @property
+    def plugin(self):
+        return self.original_status.plugin
+
+    @property
+    def project(self):
+        return self.original_status.project
+
+    @property
     def store(self):
         if self.original_status.store:
             return self.original_status.store
