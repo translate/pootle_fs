@@ -35,119 +35,107 @@ class StatusCommand(TranslationsSubCommand):
         self.stdout.write(self.status.get_status_description(status_type))
         self.stdout.write("")
         handler = getattr(self, "handle_%s" % status_type, None)
-        if handler:
-            handler()
-        else:
-            for status in self.status[status_type]:
-                self.stdout.write("  %s" % status.pootle_path)
-                self.stdout.write("   <-->  %s" % status.fs_path)
+        for status in self.status[status_type]:
+            if handler:
+                self.write_line(*handler(status))
+            else:
+                self.write_line(status.pootle_path, status.fs_path)
         self.stdout.write("")
 
-    def handle_conflict(self):
-        for status in self.status["conflict"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path, self.style.FS_CONFLICT)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("%s" % status.fs_path, self.style.FS_CONFLICT)
+    def handle_conflict(self, status):
+        return (
+            status.pootle_path,
+            status.fs_path,
+            self.style.FS_CONFLICT,
+            self.style.FS_CONFLICT)
 
-    def handle_conflict_untracked(self):
-        for status in self.status["conflict_untracked"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path, self.style.FS_CONFLICT)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("%s" % status.fs_path, self.style.FS_CONFLICT)
+    def handle_conflict_untracked(self, status):
+        return (
+            status.pootle_path,
+            status.fs_path,
+            self.style.FS_CONFLICT,
+            self.style.FS_CONFLICT)
 
-    def handle_fs_untracked(self):
-        for status in self.status["fs_untracked"]:
-            self.stdout.write(
-                "  (%s)" % status.pootle_path,
-                self.style.FS_MISSING)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("%s" % status.fs_path, self.style.FS_UNTRACKED)
+    def handle_fs_untracked(self, status):
+        return (
+            "(%s)" % status.pootle_path,
+            status.fs_path,
+            self.style.FS_MISSING,
+            self.style.FS_UNTRACKED)
 
-    def handle_fs_added(self):
-        for status in self.status["fs_added"]:
-            self.stdout.write(
-                "  (%s)" % status.pootle_path,
-                self.style.FS_MISSING)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("%s" % status.fs_path, self.style.FS_ADDED)
+    def handle_fs_added(self, status):
+        return (
+            "(%s)" % status.pootle_path,
+            status.fs_path,
+            self.style.FS_MISSING,
+            self.style.FS_ADDED)
 
-    def handle_fs_ahead(self):
-        for status in self.status["fs_ahead"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("%s" % status.fs_path, self.style.FS_UPDATED)
+    def handle_fs_ahead(self, status):
+        return (
+            status.pootle_path,
+            status.fs_path,
+            None,
+            self.style.FS_UPDATED)
 
-    def handle_fs_removed(self):
-        for status in self.status["fs_removed"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("(%s)" % status.fs_path, self.style.FS_REMOVED)
+    def handle_fs_removed(self, status):
+        return (
+            status.pootle_path,
+            "(%s)" % status.fs_path,
+            None,
+            self.style.FS_REMOVED)
 
-    def handle_pootle_untracked(self):
-        for status in self.status["pootle_untracked"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path,
-                self.style.FS_UNTRACKED)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("(%s)" % status.fs_path, self.style.FS_MISSING)
+    def handle_pootle_untracked(self, status):
+        return (
+            status.pootle_path,
+            "(%s)" % status.fs_path,
+            self.style.FS_UNTRACKED,
+            self.style.FS_REMOVED)
 
-    def handle_pootle_added(self):
-        for status in self.status["pootle_added"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path,
-                self.style.FS_ADDED)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("(%s)" % status.fs_path, self.style.FS_MISSING)
+    def handle_pootle_added(self, status):
+        return (
+            status.pootle_path,
+            "(%s)" % status.fs_path,
+            self.style.FS_ADDED,
+            self.style.FS_REMOVED)
 
-    def handle_pootle_removed(self):
-        for status in self.status["pootle_removed"]:
-            self.stdout.write(
-                "  (%s)" % status.pootle_path,
-                self.style.FS_REMOVED)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("%s" % status.fs_path)
+    def handle_pootle_removed(self, status):
+        return (
+            "(%s)" % status.pootle_path,
+            status.fs_path,
+            self.style.FS_REMOVED)
 
-    def handle_pootle_ahead(self):
-        for status in self.status["pootle_ahead"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path,
-                self.style.FS_UPDATED)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write("%s" % status.fs_path)
+    def handle_pootle_ahead(self, status):
+        return (
+            status.pootle_path,
+            status.fs_path,
+            self.style.FS_UPDATED)
 
-    def handle_merge_fs(self):
-        for status in self.status["merge_fs"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path,
-                self.style.FS_UPDATED)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write(
-                "%s" % status.fs_path,
-                self.style.FS_UPDATED)
+    def handle_merge_fs(self, status):
+        return (
+            status.pootle_path,
+            status.fs_path,
+            self.style.FS_UPDATED,
+            self.style.FS_UPDATED)
 
-    def handle_merge_pootle(self):
-        for status in self.status["merge_pootle"]:
-            self.stdout.write(
-                "  %s" % status.pootle_path,
-                self.style.FS_UPDATED)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write(
-                "%s" % status.fs_path,
-                self.style.FS_UPDATED)
+    def handle_merge_pootle(self, status):
+        return (
+            status.pootle_path,
+            status.fs_path,
+            self.style.FS_UPDATED,
+            self.style.FS_UPDATED)
 
-    def handle_to_remove(self):
-        for status in self.status["to_remove"]:
-            self.stdout.write(
-                "  (%s)" % status.pootle_path,
-                self.style.FS_MISSING)
-            self.stdout.write("   <-->  ", ending="")
-            self.stdout.write(
-                "(%s)" % status.fs_path,
-                self.style.FS_MISSING)
+    def handle_to_remove(self, status):
+        if status.store_fs.file.exists:
+            pootle_path = "(%s)" % status.pootle_path
+            fs_path = status.fs_path
+        else:
+            pootle_path = status.pootle_path
+            fs_path = "(%s)" % status.fs_path
+        return (
+            pootle_path,
+            fs_path,
+            self.style.FS_MISSING,
+            self.style.FS_MISSING)
 
     def handle(self, project_code, *args, **options):
         self.fs = self.get_fs(project_code)

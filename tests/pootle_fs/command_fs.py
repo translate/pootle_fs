@@ -47,21 +47,30 @@ def _test_status(status, out):
         return
 
     def _status_line(fs_status):
-        fs_exists = [
+        fs_exists_status = [
             "fs_untracked", "fs_added", "fs_ahead",
             "pootle_ahead", "pootle_removed",
             "conflict", "conflict_untracked",
             "merge_fs", "merge_pootle"]
-        store_exists = [
+        store_exists_status = [
             "pootle_untracked", "pootle_added", "pootle_ahead",
             "fs_ahead", "fs_removed",
             "conflict", "conflict_untracked",
             "merge_fs", "merge_pootle"]
-        if fs_status.status in fs_exists:
+        fs_exists = (
+            fs_status.status in fs_exists_status
+            or (fs_status.status == "to_remove"
+                and fs_status.store_fs.file.exists))
+        store_exists = (
+            fs_status.status in store_exists_status
+            or (fs_status.status == "to_remove"
+                and not fs_status.store_fs.file.exists))
+
+        if fs_exists:
             fs_path = fs_status.fs_path
         else:
             fs_path = "(%s)" % fs_status.fs_path
-        if fs_status.status in store_exists:
+        if store_exists:
             pootle_path = fs_status.pootle_path
         else:
             pootle_path = "(%s)" % fs_status.pootle_path

@@ -38,6 +38,12 @@ class SubCommand(BaseCommand):
         self.project = Project.objects.get(code=project_code)
         return self.project
 
+    def write_line(self, pootle_path, fs_path,
+                   pootle_style=None, fs_style=None):
+        self.stdout.write("  %s" % pootle_path, pootle_style)
+        self.stdout.write("   <-->  ", ending="")
+        self.stdout.write(fs_path, fs_style)
+
 
 class TranslationsSubCommand(SubCommand):
     shared_option_list = (
@@ -55,24 +61,22 @@ class TranslationsSubCommand(SubCommand):
             return self.fs.plugin
 
     def handle_added_from_pootle(self, action):
-        self.stdout.write(
-            "  %s" % action.pootle_path)
         if action.original_status.status in ["conflict", "conflict_untracked"]:
-            self.stdout.write(
-                "   <-->  %s" % action.fs_path)
+            return action.pootle_path, action.fs_path
         else:
-            self.stdout.write(
-                "   <-->  (%s)" % action.fs_path, self.style.FS_MISSING)
+            return (
+                action.pootle_path,
+                "(%s)" % action.fs_path,
+                None, self.style.FS_MISSING)
 
     def handle_fetched_from_fs(self, action):
         if action.original_status.status in ["conflict", "conflict_untracked"]:
-            self.stdout.write(
-                "  %s" % action.pootle_path)
+            return action.pootle_path, action.fs_path
         else:
-            self.stdout.write(
-                "  (%s)" % action.pootle_path, self.style.FS_MISSING)
-        self.stdout.write(
-            "   <-->  %s" % action.fs_path)
+            return (
+                "(%s)" % action.pootle_path,
+                action.fs_path,
+                self.style.FS_MISSING)
 
     def handle_staged_for_removal(self, action):
         file_exists = (
@@ -89,14 +93,14 @@ class TranslationsSubCommand(SubCommand):
             pootle_path = action.pootle_path
         else:
             pootle_path = "(%s)" % action.pootle_path
-        self.stdout.write("  %s" % pootle_path)
-        self.stdout.write("   <-->  %s" % fs_path)
+        return pootle_path, fs_path
 
     def handle_removed(self, action):
-        self.stdout.write(
-            "  (%s)" % action.pootle_path, self.style.FS_MISSING)
-        self.stdout.write(
-            "   <-->  (%s)" % action.fs_path, self.style.FS_MISSING)
+        return(
+            "(%s)" % action.pootle_path,
+            "(%s)" % action.fs_path,
+            self.style.POOTLE_MISSING,
+            self.style.FS_MISSING)
 
     def handle_actions(self, action_type):
         failed = self.response.failed(action_type)
@@ -111,15 +115,15 @@ class TranslationsSubCommand(SubCommand):
         for action in self.response.completed(action_type):
             handler = getattr(self, "handle_%s" % action_type, None)
             if handler:
-                handler(action)
+                self.write_line(*handler(action))
             else:
-                self.stdout.write("  %s" % action.pootle_path)
-                self.stdout.write("   <-->  %s" % action.fs_path)
+                self.write_line(action.pootle_path, action.fs_path)
         for action in failed:
-            self.stdout.write(
-                "  %s" % action.pootle_path, self.style.FS_ERROR)
-            self.stdout.write(
-                "   <-->  %s" % action.fs_path, self.style.FS_ERROR)
+            self.write_line(
+                action.pootle_path,
+                action.fs_path,
+                fs_style=self.style.FS_ERROR,
+                pootle_style=self.style.POOTLE_ERROR)
         self.stdout.write("")
 
     def handle_response(self, response):
