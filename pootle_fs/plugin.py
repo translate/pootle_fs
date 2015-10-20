@@ -25,7 +25,8 @@ from .files import FSFile
 from .finder import TranslationFileFinder
 from .language import LanguageMapper
 from .models import FS_WINS, POOTLE_WINS, ProjectFS
-from .status import ProjectFSStatus, ActionResponse
+from .response import ActionResponse
+from .status import ProjectFSStatus
 
 
 logger = logging.getLogger(__name__)

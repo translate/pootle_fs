@@ -9,61 +9,44 @@
 
 import pytest
 
-from pootle_fs.models import StoreFS
-from pootle_fs.status import ProjectFSStatus
 from pootle_fs.response import FS_ACTION, ActionResponse
 
-from pootle_fs_pytest.utils import (
-    STATUS_TYPES, _test_status, _edit_file)
-
 
 @pytest.mark.django
-def test_status_instance(fs_plugin):
-    assert fs_plugin.is_cloned is False
-    status = fs_plugin.status()
+def test_response_instance(fs_plugin):
+    plugin = fs_plugin
+    plugin.status()
+    response = plugin.sync_translations()
+    assert isinstance(response, ActionResponse)
+    assert str(response) == (
+        "<FSActionResponse(Tutorial): No changes made>")
+    assert response.has_failed is False
+    assert response.made_changes is False
+    assert "fetched_from_fs" not in response
+    assert response["fetched_from_fs"] == []
+    response = plugin.fetch_translations(pootle_path="/en*")
+    assert str(response) == (
+        "<FSActionResponse(Tutorial): fetched_from_fs: 9>")
+    assert "fetched_from_fs" in response
+    assert len(response["fetched_from_fs"]) == 9
+    assert response.has_failed is False
 
-    # calling status will call pull
-    assert fs_plugin.is_cloned is True
-    assert isinstance(status, ProjectFSStatus)
-    assert str(status) == (
-        "<ProjectFSStatus(Tutorial): fs_untracked: 18>")
-    assert status.has_changed is True
-    for k in STATUS_TYPES:
-        if k == "fs_untracked":
-            continue
-        assert status[k] == []
-        assert k not in status
+    response = plugin.rm_translations()
+    assert str(response) == (
+        "<FSActionResponse(Tutorial): staged_for_removal: 9>")
+    assert "fetched_from_fs" not in response
+    assert "staged_for_removal" in response
+    assert len(response["staged_for_removal"]) == 9
+    assert response.has_failed is False
 
-    # when we fetch the translations their status is set to fs_added
-    fs_plugin.fetch_translations()
-    status = fs_plugin.status()
-    assert "fs_added" in status
-    assert all([isinstance(x.store_fs, StoreFS) for x in status['fs_added']])
-
-    # pulling the translations makes us up-to-date
-    fs_plugin.pull_translations()
-    status = fs_plugin.status()
-    assert status.has_changed is False
-
-    # We can reload the status object with status.check_status()
-    old_status = fs_plugin.status()
-    _edit_file(fs_plugin, "/gnu_style/po/en.po")
-    assert old_status.has_changed is False
-    assert status.has_changed is False
-
-    new_status = status.check_status()
-
-    assert old_status.has_changed is False
-    assert status.has_changed is True
-    assert new_status.has_changed is True
-
-
-# Parametrized: PLUGIN_STATUS
-@pytest.mark.django
-def test_status(fs_status):
-    plugin, cb, outcome = fs_status
-    cb(plugin)
-    _test_status(plugin, outcome)
+    response = plugin.sync_translations()
+    assert str(response) == (
+        "<FSActionResponse(Tutorial): pulled_to_pootle: 9, removed: 9>")
+    assert "pulled_to_pootle" in response
+    assert "removed" in response
+    assert len(response["pulled_to_pootle"]) == 9
+    assert len(response["removed"]) == 9
+    assert response.has_failed is False
 
 
 @pytest.mark.django
