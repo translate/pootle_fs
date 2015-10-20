@@ -6,6 +6,7 @@
 # or later license. See the LICENSE file for a copy of the license and the
 # AUTHORS file for copyright and authorship information.
 
+from collections import OrderedDict
 import logging
 
 from django.utils.functional import cached_property
@@ -73,7 +74,7 @@ class LanguageMapper(object):
         return self.lang_mappings.get(lang_code, lang_code)
 
     def _parse_lang_mappings(self, mapping):
-        _mapping = {}
+        _mapping = OrderedDict()
 
         def _add_lang_mapping(k, v):
             # as its a 1-2-1 mapping remove any previous items with
