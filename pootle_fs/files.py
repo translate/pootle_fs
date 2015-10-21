@@ -27,25 +27,25 @@ logger = logging.getLogger(__name__)
 
 class FSFile(object):
 
-    def __init__(self, fs_store):
+    def __init__(self, store_fs):
         """
-        :param fs_store: ``FSStore`` object
+        :param store_fs: ``FSStore`` object
         """
-        if not isinstance(fs_store, StoreFS):
+        if not isinstance(store_fs, StoreFS):
             raise TypeError(
                 "pootle_fs.FSFile expects a StoreFS")
-        self.fs_store = fs_store
-        self.pootle_path = fs_store.pootle_path
-        self.path = fs_store.path
+        self.store_fs = store_fs
+        self.pootle_path = store_fs.pootle_path
+        self.path = store_fs.path
 
     def __str__(self):
         return "<%s: %s::%s>" % (
-            self.__name__, self.pootle_path, self.path)
+            self.__class__.__name__, self.pootle_path, self.path)
 
     @property
     def directory(self):
-        if self.fs_store.store:
-            return self.fs_store.store.parent
+        if self.store_fs.store:
+            return self.store_fs.store.parent
         if not self.translation_project:
             return
         directory = self.translation_project.directory
@@ -86,12 +86,12 @@ class FSFile(object):
             latest_hash
             and (
                 latest_hash
-                != self.fs_store.last_sync_hash))
+                != self.store_fs.last_sync_hash))
 
     @cached_property
     def language(self):
-        if self.fs_store.store:
-            return self.fs_store.store.translation_project.language
+        if self.store_fs.store:
+            return self.store_fs.store.translation_project.language
         return Language.objects.get(code=self.pootle_path.split("/")[1])
 
     @property
@@ -108,16 +108,16 @@ class FSFile(object):
             self.store
             and (
                 self.store.get_max_unit_revision()
-                != self.fs_store.last_sync_revision))
+                != self.store_fs.last_sync_revision))
 
     @property
     def project(self):
-        return self.fs_store.project
+        return self.store_fs.project
 
     @property
     def store(self):
-        if self.fs_store.store:
-            return self.fs_store.store
+        if self.store_fs.store:
+            return self.store_fs.store
         try:
             return Store.objects.get(
                 pootle_path=self.pootle_path)
@@ -126,8 +126,8 @@ class FSFile(object):
 
     @property
     def translation_project(self):
-        if self.fs_store.store:
-            return self.fs_store.store.translation_project
+        if self.store_fs.store:
+            return self.store_fs.store.translation_project
         try:
             return self.project.translationproject_set.get(
                 language=self.language)
@@ -136,8 +136,8 @@ class FSFile(object):
 
     def add(self):
         logger.debug("Adding file: %s" % self.path)
-        self.fs_store.resolve_conflict = POOTLE_WINS
-        self.fs_store.save()
+        self.store_fs.resolve_conflict = POOTLE_WINS
+        self.store_fs.save()
 
     def create_store(self):
         """
@@ -169,9 +169,9 @@ class FSFile(object):
             if created:
                 store.save()
                 logger.debug("Created Store: %s" % store.pootle_path)
-        if not self.fs_store.store == self.store:
-            self.fs_store.store = self.store
-            self.fs_store.save()
+        if not self.store_fs.store == self.store:
+            self.store_fs.store = self.store
+            self.store_fs.save()
 
     def delete(self):
         """
@@ -182,8 +182,8 @@ class FSFile(object):
         store = self.store
         if store and store.pk:
             store.makeobsolete()
-        if self.fs_store.pk:
-            self.fs_store.delete()
+        if self.store_fs.pk:
+            self.store_fs.delete()
         self.remove_file()
 
     def fetch(self):
@@ -191,21 +191,21 @@ class FSFile(object):
         Called when FS file is fetched
         """
         logger.debug("Fetching file: %s" % self.path)
-        if self.store and not self.fs_store.store:
-            self.fs_store.store = self.store
-        self.fs_store.resolve_conflict = FS_WINS
-        self.fs_store.save()
-        return self.fs_store
+        if self.store and not self.store_fs.store:
+            self.store_fs.store = self.store
+        self.store_fs.resolve_conflict = FS_WINS
+        self.store_fs.save()
+        return self.store_fs
 
     def on_sync(self, latest_hash, revision):
         """
         Called after FS and Pootle have been synced
         """
-        self.fs_store.resolve_conflict = None
-        self.fs_store.staged_for_merge = False
-        self.fs_store.last_sync_hash = latest_hash
-        self.fs_store.last_sync_revision = revision
-        self.fs_store.save()
+        self.store_fs.resolve_conflict = None
+        self.store_fs.staged_for_merge = False
+        self.store_fs.last_sync_hash = latest_hash
+        self.store_fs.last_sync_revision = revision
+        self.store_fs.save()
         logger.debug("File synced: %s" % self.path)
 
     def pull(self):
@@ -215,9 +215,9 @@ class FSFile(object):
         logger.debug("Pulling file: %s" % self.path)
         if not self.store:
             self.create_store()
-        if not self.fs_store.store == self.store:
-            self.fs_store.store = self.store
-            self.fs_store.save()
+        if not self.store_fs.store == self.store:
+            self.store_fs.store = self.store
+            self.store_fs.save()
         self.sync_to_pootle()
 
     def push(self):
@@ -225,12 +225,12 @@ class FSFile(object):
         Push Pootle ``Store`` into FS
         """
         current_revision = self.store.get_max_unit_revision()
-        last_revision = self.fs_store.last_sync_revision
+        last_revision = self.store_fs.last_sync_revision
         if self.exists:
             if last_revision and (last_revision == current_revision):
                 return
         logger.debug("Pushing file: %s" % self.path)
-        directory = os.path.dirname(self.fs_store.file.file_path)
+        directory = os.path.dirname(self.store_fs.file.file_path)
         if not os.path.exists(directory):
             logger.debug("Creating directory: %s" % directory)
             os.makedirs(directory)
@@ -258,7 +258,7 @@ class FSFile(object):
         """
         with open(self.file_path) as f:
             if merge:
-                revision = self.fs_store.last_sync_revision
+                revision = self.store_fs.last_sync_revision
             else:
                 revision = self.store.get_max_unit_revision() + 1
             tmp_store = getclass(f)(f.read())
