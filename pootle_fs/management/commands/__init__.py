@@ -105,7 +105,7 @@ class TranslationsSubCommand(SubCommand):
     def handle_actions(self, action_type):
         failed = self.response.failed(action_type)
         title = self.response.get_action_title(action_type)
-        if failed:
+        if any(failed):
             self.stdout.write(title, self.style.ERROR)
         else:
             self.stdout.write(title, self.style.HTTP_INFO)
@@ -118,12 +118,13 @@ class TranslationsSubCommand(SubCommand):
                 self.write_line(*handler(action))
             else:
                 self.write_line(action.pootle_path, action.fs_path)
-        for action in failed:
-            self.write_line(
-                action.pootle_path,
-                action.fs_path,
-                fs_style=self.style.FS_ERROR,
-                pootle_style=self.style.POOTLE_ERROR)
+        if any(failed):
+            for action in failed:
+                self.write_line(
+                    action.pootle_path,
+                    action.fs_path,
+                    fs_style=self.style.FS_ERROR,
+                    pootle_style=self.style.POOTLE_ERROR)
         self.stdout.write("")
 
     def handle_response(self, response):
