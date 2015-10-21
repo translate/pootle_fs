@@ -61,15 +61,6 @@ class Plugin(object):
                 yield store, fs_path
 
     @property
-    def conflicting_translations(self):
-        unresolved = self.synced_translations.filter(
-            resolve_conflict__isnull=True)
-        for translation in unresolved:
-            fs_file = translation.file
-            if fs_file.fs_changed and fs_file.pootle_changed:
-                yield translation
-
-    @property
     def is_cloned(self):
         if os.path.exists(self.local_fs_path):
             return True
