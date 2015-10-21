@@ -14,6 +14,8 @@ from pootle_fs.models import StoreFS, ProjectFS
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
+from pootle_fs_pytest.utils import _setup_store
+
 
 @pytest.mark.django_db
 def test_add_new_store_fs(tutorial_fs):
@@ -77,13 +79,43 @@ def test_add_store_fs_by_store(en_tutorial_po):
 
 
 @pytest.mark.django_db
-def test_add_store_bad_project(tutorial_fs):
+def test_add_store_bad(fs_plugin, other_project):
     """Try to create a store_fs by pootle_path for a non existent project
     """
+    # project doesnt exist
     with pytest.raises(ValidationError):
         StoreFS.objects.create(
             pootle_path="/en/tutorial_BAD/example.po",
             path="/some/fs/example.po")
+
+    # project has not fs plugin set up
+    with pytest.raises(ValidationError):
+        StoreFS.objects.create(
+            project=other_project,
+            pootle_path="/en/other_project/en.po",
+            path="/locales/en.po")
+
+    # pootle_path must match project_code
+    with pytest.raises(ValidationError):
+        StoreFS.objects.create(
+            project=fs_plugin.project,
+            pootle_path="/en/other_project/en.po",
+            path="/locales/en.po")
+
+    # need both pootle_path and fs_path - somehow
+    with pytest.raises(ValidationError):
+        StoreFS.objects.create(
+            project=fs_plugin.project,
+            pootle_path="/en/tutorial/en.po")
+    with pytest.raises(ValidationError):
+        StoreFS.objects.create(
+            project=fs_plugin.project,
+            path="/locales/en.po")
+    store = _setup_store("/en/tutorial/en.po")
+    with pytest.raises(ValidationError):
+        StoreFS.objects.create(
+            store=store,
+            pootle_path=store.pootle_path)
 
 
 @pytest.mark.django_db

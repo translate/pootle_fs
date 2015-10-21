@@ -59,6 +59,12 @@ def tutorial(projects, english):
 
 
 @pytest.fixture
+def other_project(projects, english):
+    """Require `other_project` test project. """
+    return _require_project('other_project', 'Other project', english)
+
+
+@pytest.fixture
 def english_tutorial(english, tutorial):
     """Require English Tutorial."""
     return _require_tp(english, tutorial)

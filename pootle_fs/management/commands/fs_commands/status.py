@@ -34,12 +34,9 @@ class StatusCommand(TranslationsSubCommand):
         self.stdout.write("-" * len(title))
         self.stdout.write(self.status.get_status_description(status_type))
         self.stdout.write("")
-        handler = getattr(self, "handle_%s" % status_type, None)
+        handler = getattr(self, "handle_%s" % status_type)
         for status in self.status[status_type]:
-            if handler:
-                self.write_line(*handler(status))
-            else:
-                self.write_line(status.pootle_path, status.fs_path)
+            self.write_line(*handler(status))
         self.stdout.write("")
 
     def handle_conflict(self, status):

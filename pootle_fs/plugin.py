@@ -8,6 +8,7 @@
 
 from ConfigParser import ConfigParser
 from fnmatch import fnmatch
+import functools
 import io
 import logging
 import os
@@ -30,6 +31,27 @@ from .status import ProjectFSStatus
 
 
 logger = logging.getLogger(__name__)
+
+
+def responds_to_status(f):
+
+    @functools.wraps(f)
+    def method_wrapper(self, *args, **kwargs):
+        if "response" in kwargs:
+            response = kwargs["response"]
+            del kwargs["response"]
+        else:
+            response = self.response_class(self)
+
+        if "status" in kwargs:
+            status = kwargs["status"]
+            del kwargs["status"]
+        else:
+            status = self.status(
+                pootle_path=kwargs.get("pootle_path"),
+                fs_path=kwargs.get("fs_path"))
+        return f(self, status, response, *args, **kwargs)
+    return method_wrapper
 
 
 class Plugin(object):
@@ -97,7 +119,7 @@ class Plugin(object):
                 logger.warning(
                     "Misconfigured user in .pootle.ini: %s"
                     % username)
-        return None
+        return User.objects.get(username="system")
 
     @property
     def project(self):
@@ -123,7 +145,9 @@ class Plugin(object):
         return (self.translations.filter(last_sync_revision__isnull=True)
                                  .filter(last_sync_hash__isnull=True))
 
-    def add_translations(self, force=False, pootle_path=None, fs_path=None):
+    @responds_to_status
+    def add_translations(self, status, response,
+                         pootle_path=None, fs_path=None, force=False):
         """
         Add translations from Pootle into the FS
 
@@ -139,9 +163,6 @@ class Plugin(object):
         from .models import StoreFS
         if not self.is_cloned:
             self.pull()
-
-        response = self.response_class(self)
-        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["pootle_untracked"]
         if force:
             to_create += status["conflict_untracked"]
@@ -164,7 +185,9 @@ class Plugin(object):
         if self.is_cloned:
             shutil.rmtree(self.local_fs_path)
 
-    def fetch_translations(self, force=False, pootle_path=None, fs_path=None):
+    @responds_to_status
+    def fetch_translations(self, status, response,
+                           pootle_path=None, fs_path=None, force=False):
         """
         Add translations from FS into Pootle
 
@@ -181,8 +204,6 @@ class Plugin(object):
         if not self.is_cloned:
             self.pull()
 
-        response = self.response_class(self)
-        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         to_create = status["fs_untracked"]
         if force:
             to_create = to_create + status["conflict_untracked"]
@@ -214,6 +235,7 @@ class Plugin(object):
         :yields pootle_path, fs_path:
         """
         config = self.read_config()
+        missing_langs = set()
 
         for section in config.sections():
             if section == "default":
@@ -223,7 +245,6 @@ class Plugin(object):
 
             finder = self.get_finder(
                 config.get(section, "translation_path"))
-            missing_langs = set()
             for file_path, matched in finder.find():
                 path = file_path.replace(self.local_fs_path, "")
                 if fs_path is not None:
@@ -247,10 +268,10 @@ class Plugin(object):
                     if not fnmatch(_pootle_path, pootle_path):
                         continue
                 yield _pootle_path, path
-            if missing_langs:
-                logger.warning(
-                    "Could not import files for languages: %s"
-                    % (", ".join(missing_langs)))
+        if missing_langs:
+            logger.warning(
+                "Could not import files for languages: %s"
+                % (", ".join(missing_langs)))
 
     @lru_cache(maxsize=None)
     def get_finder(self, translation_path):
@@ -297,17 +318,15 @@ class Plugin(object):
         if fs_path:
             return "/%s" % fs_path.lstrip("/")
 
-    def merge_translations(self, pootle_path=None, fs_path=None,
-                           response=None, status=None, pootle_wins=False):
+    @responds_to_status
+    def merge_translations(self, status, response,
+                           pootle_path=None, fs_path=None, pootle_wins=False):
         """
         :param fs_path: Path glob to filter translations matching FS path
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
         from .models import StoreFS
-
-        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
-        response = self.response_class(self)
 
         for fs_status in status["conflict_untracked"]:
             fs_store = StoreFS.objects.create(
@@ -338,12 +357,9 @@ class Plugin(object):
             response.add(action_type, fs_status)
         return response
 
-    def merge_translation_files(self, pootle_path=None, fs_path=None,
-                                response=None, status=None):
-        if response is None:
-            response = self.response_class(self)
-        if status is None:
-            status = self.status(pootle_path=pootle_path, fs_path=fs_path)
+    @responds_to_status
+    def merge_translation_files(self, status, response,
+                                pootle_path=None, fs_path=None):
         for fs_status in status["merge_pootle"]:
             fs_status.store_fs.file.sync_to_pootle(
                 merge=True, pootle_wins=True)
@@ -360,6 +376,7 @@ class Plugin(object):
                 fs_status.store_fs.file.latest_hash,
                 fs_status.store_fs.store.get_max_unit_revision())
             response.add("merged_from_fs", fs_status)
+        return response
 
     def pull(self):
         """
@@ -367,17 +384,14 @@ class Plugin(object):
         """
         pass
 
-    def pull_translations(self, pootle_path=None, fs_path=None,
-                          response=None, status=None):
+    @responds_to_status
+    def pull_translations(self, status, response,
+                          pootle_path=None, fs_path=None):
         """
         :param fs_path: Path glob to filter translations matching FS path
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
-        if response is None:
-            response = self.response_class(self)
-        if status is None:
-            status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         for fs_status in (status['fs_added'] + status['fs_ahead']):
             fs_status.store_fs.file.pull()
             response.add("pulled_to_pootle", fs_status)
@@ -389,10 +403,9 @@ class Plugin(object):
         """
         return response
 
-    def push_translations(self, pootle_path=None,
-                          fs_path=None, status=None, response=None):
-        if response is None:
-            response = self.response_class(self)
+    @responds_to_status
+    def push_translations(self, status, response,
+                          pootle_path=None, fs_path=None):
         self.push_translation_files(
             status=status, pootle_path=pootle_path,
             fs_path=fs_path, response=response)
@@ -403,18 +416,15 @@ class Plugin(object):
                 action_status.store_fs.store.get_max_unit_revision())
         return self.push(response)
 
-    def push_translation_files(self, pootle_path=None,
-                               fs_path=None, status=None, response=None):
+    @responds_to_status
+    def push_translation_files(self, status, response,
+                               pootle_path=None, fs_path=None):
         """
         :param prune: Remove files that do not exist in Pootle.
         :param fs_path: Path glob to filter translations matching FS path
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
-        if response is None:
-            response = self.response_class(self)
-        if status is None:
-            status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         pushable = status['pootle_added'] + status['pootle_ahead']
         for fs_status in pushable:
             fs_status.store_fs.file.push()
@@ -471,16 +481,15 @@ class Plugin(object):
             os.path.join(
                 self.local_fs_path, path.strip("/")))
 
-    def rm_translations(self, pootle_path=None, fs_path=None):
+    @responds_to_status
+    def rm_translations(self, status, response,
+                        pootle_path=None, fs_path=None):
         """
         :param fs_path: Path glob to filter translations matching FS path
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
         from .models import StoreFS
-
-        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
-        response = self.response_class(self)
         untracked = (
             status["fs_untracked"] + status["pootle_untracked"])
 
@@ -501,24 +510,22 @@ class Plugin(object):
             response.add("staged_for_removal", fs_status)
         return response
 
-    def remove_translation_files(self, pootle_path=None,
-                                 fs_path=None, status=None, response=None):
+    @responds_to_status
+    def remove_translation_files(self, status, response,
+                                 pootle_path=None, fs_path=None):
         """
         :param fs_path: Path glob to filter translations matching FS path
         :param pootle_path: Path glob to filter translations to add matching
           ``pootle_path``
         """
-        if response is None:
-            response = self.response_class(self)
-        if status is None:
-            status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         for fs_status in status['to_remove']:
             fs_status.store_fs.file.delete()
             response.add("removed", fs_status)
+        return response
 
-    def sync_translations(self, pootle_path=None, fs_path=None):
-        response = self.response_class(self)
-        status = self.status(pootle_path=pootle_path, fs_path=fs_path)
+    @responds_to_status
+    def sync_translations(self, status, response,
+                          pootle_path=None, fs_path=None):
         self.remove_translation_files(
             pootle_path=None, fs_path=None, response=response, status=status)
         self.merge_translation_files(

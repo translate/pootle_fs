@@ -13,8 +13,10 @@ from ConfigParser import ConfigParser
 
 from pootle_fs_pytest.suite import (
     run_fetch_test, run_add_test, run_rm_test, run_merge_test)
+from pootle_fs_pytest.utils import _edit_file
 
 from pootle_fs.language import LanguageMapper
+from pootle_fs.models import ProjectFS
 
 
 TEST_LANG_MAPPING = """
@@ -54,6 +56,45 @@ def test_plugin_instance(fs_plugin):
     assert fs_plugin.is_cloned is False
     assert fs_plugin.stores.exists() is False
     assert fs_plugin.translations.exists() is False
+
+    # any instance of the same plugin is equal
+    new_plugin = ProjectFS.objects.get(project=fs_plugin.project).plugin
+    assert fs_plugin == new_plugin
+    assert fs_plugin is not new_plugin
+
+    # but the plugin doesnt equate to a cabbage 8)
+    assert not fs_plugin == "a cabbage"
+
+
+@pytest.mark.django
+def test_plugin_find_translations(fs_plugin):
+    assert (
+        len([x for x in fs_plugin.find_translations()])
+        == 18)
+    assert (
+        len([x for x in fs_plugin.find_translations(pootle_path="rhubarb")])
+        == 0)
+    assert (
+        len([x for x in fs_plugin.find_translations(fs_path="custard")])
+        == 0)
+    assert (
+        len([x for x in fs_plugin.find_translations(pootle_path="/en*")])
+        == 9)
+    assert (
+        len([x for x in fs_plugin.find_translations(fs_path="*zu*")])
+        == 9)
+
+
+@pytest.mark.django
+def test_plugin_find_translations_missing_langs(fs_plugin, caplog):
+    _edit_file(fs_plugin, "/gnu_style/po/fr.po")
+    _edit_file(fs_plugin, "/gnu_style/po/sw.po")
+    assert (
+        len([x for x in fs_plugin.find_translations()])
+        == 18)
+    log = caplog.records()[0]
+    assert log.levelname == "WARNING"
+    assert log.message == "Could not import files for languages: fr, sw"
 
 
 @pytest.mark.django
@@ -109,6 +150,31 @@ def test_plugin_pootle_attribution(fs_plugin_suite, member):
         for unit in changed_units:
             if unit.target:
                 assert unit.submitted_by.username == "member"
+
+    updated_revs = {}
+    for fs_status in status["fs_added"]:
+        if fs_status.store_fs.store:
+            updated_revs[fs_status.pootle_path] = (
+                fs_status.store_fs.store.get_max_unit_revision())
+        else:
+            updated_revs[fs_status.pootle_path] = 0
+
+    config.set("default", "pootle_user", "not_a_member")
+    config.write(
+        open(
+            os.path.join(plugin.fs.url, ".pootle.ini"), "w"))
+
+    plugin.update_config()
+    plugin.fetch_translations(force=True)
+    status = plugin.status()
+
+    response = plugin.sync_translations()
+    for action in response["pulled_to_pootle"]:
+        changed_units = action.store.units.filter(
+            revision__gt=updated_revs.get(action.store.pootle_path, 0))
+        for unit in changed_units:
+            if unit.target:
+                assert unit.submitted_by.username == "system"
 
 
 @pytest.mark.django

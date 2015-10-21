@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) Pootle contributors.
@@ -14,6 +13,7 @@ import pytest
 
 from django.core.management import call_command, CommandError
 
+from pootle_fs.management.commands.fs_commands.status import StatusCommand
 from pootle_fs.models import ProjectFS
 
 
@@ -223,6 +223,19 @@ def test_command_status_merge_fs(fs_plugin_suite, capsys):
 
 
 @pytest.mark.django
+def test_command_status_synced(fs_plugin_suite, capsys):
+    plugin = fs_plugin_suite
+    plugin.add_translations()
+    plugin.fetch_translations()
+    plugin.merge_translations()
+    plugin.rm_translations()
+    plugin.sync_translations()
+    call_command("fs", plugin.project.code, "status")
+    out, err = capsys.readouterr()
+    assert out == "Everything up-to-date\n"
+
+
+@pytest.mark.django
 def test_command_status_merge_pootle(fs_plugin_suite, capsys):
     plugin = fs_plugin_suite
     call_command("fs", plugin.project.code, "status")
@@ -285,7 +298,7 @@ def test_command_config(fs_plugin_suite, capsys):
 
 
 @pytest.mark.django
-def test_command_set_fs(fs_plugin, capsys):
+def test_command_set_fs(fs_plugin, capsys, other_project):
     plugin = fs_plugin
 
     plugin.pull()
@@ -313,6 +326,17 @@ def test_command_set_fs(fs_plugin, capsys):
 
     # changing the fs_type/url results in the local_fs being deleted
     assert plugin.is_cloned is False
+
+    # we can create a new fs
+    from pootle_fs.models import ProjectFS
+
+    with pytest.raises(ProjectFS.DoesNotExist):
+        ProjectFS.objects.get(project__code="other_project")
+
+    call_command("fs", "other_project", "set_fs", "example", "baz")
+    fs = ProjectFS.objects.get(project__code="other_project")
+    assert fs.url == "baz"
+    assert fs.plugin.is_cloned is False
 
 
 @pytest.mark.django
@@ -463,3 +487,48 @@ def test_command_fs_argv_subcommands(fs_plugin_suite, capsys):
             ["%s\t%s" % (plugin.project.code, plugin.fs.url)
              for plugin in plugins]))
     assert out == expected
+
+
+@pytest.mark.django
+def test_command_fs_argv_subcommand_error(fs_plugin_suite):
+    from pootle_fs.management.commands.fs import Command
+    command = Command().run_from_argv
+
+    with pytest.raises(SystemExit):
+        command(
+            ["pootle", "fs", "BAD_PROJECT_CODE"])
+
+    with pytest.raises(CommandError):
+        command(
+            ["pootle", "fs", "BAD_PROJECT_CODE", "--traceback"])
+
+    with pytest.raises(CommandError):
+        command(
+            ["pootle", "fs", "BAD_PROJECT_CODE", "--traceback", "--foo"])
+
+
+@pytest.mark.django
+def test_command_translations_subcommands(fs_plugin_suite,
+                                          capsys, other_project):
+    command = StatusCommand()
+
+    # this works fine
+    command.execute("tutorial", pootle_path=None, fs_path=None)
+    out, err = capsys.readouterr()
+    assert not err
+
+    # a project with no fs setup raises command error
+    with pytest.raises(CommandError):
+        command.execute("other_project", pootle_path=None, fs_path=None)
+
+    # as does a non-existent project
+    with pytest.raises(CommandError):
+        command.execute("DOESNT_EXIST", pootle_path=None, fs_path=None)
+
+
+@pytest.mark.django
+def test_command_no_color(fs_plugin):
+    call_command("fs", "tutorial", "status")
+    assert os.environ["DJANGO_COLORS"] == "light"
+    call_command("fs", "tutorial", "status", no_color=True)
+    assert os.environ["DJANGO_COLORS"] == "nocolor"

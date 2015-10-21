@@ -231,9 +231,14 @@ def _test_status(plugin, expected):
     assert status.has_changed is (expected and True or False)
     for k in STATUS_TYPES:
         if k in expected:
-            assert expected[k] == [
-                (s.pootle_path, s.fs_path)
-                for s in status[k]]
+            for i, fs_status in enumerate(status[k]):
+                assert expected[k][i] == (
+                    fs_status.pootle_path, fs_status.fs_path)
+                assert (
+                    str(fs_status)
+                    == ("<StoreFSStatus(%s): %s %s::%s>"
+                        % (fs_status.project, k,
+                           fs_status.pootle_path, fs_status.fs_path)))
             assert k in status
         else:
             assert status[k] == []

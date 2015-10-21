@@ -117,7 +117,16 @@ def _test_sync(plugin, **kwargs):
             assert original_status.pootle_path == expected_status.pootle_path
             assert original_status.fs_path == expected_status.fs_path
 
-            if k in ["pulled_to_pootle", "pushed_to_fs"]:
+            if item.store and k != "removed":
+                assert not item.store.obsolete
+            elif item.store and k == "removed":
+                assert item.store.obsolete
+
+            synced_responses = [
+                "pulled_to_pootle", "pushed_to_fs",
+                "merged_from_fs", "merged_from_pootle"]
+
+            if k in synced_responses:
                 assert item.store.pootle_path == expected_status.pootle_path
                 assert item.store.fs.get().path == expected_status.fs_path
                 store_fs = item.store.fs.get()
@@ -238,7 +247,6 @@ def _run_rm_test(plugin, **kwargs):
     expected["staged_for_removal"] = []
     to_remove = (
         status["fs_untracked"] + status["pootle_untracked"]
-        + status["conflict_untracked"]
         + status["pootle_removed"] + status["fs_removed"])
     for fs_status in to_remove:
         if pootle_path and not fnmatch(fs_status.pootle_path, pootle_path):

@@ -87,9 +87,9 @@ class ActionStatus(Status):
         else:
             failed = ""
         return (
-            "<FSAction(%s)%s: %s %s>"
-            % (self.store_fs.project, failed,
-               self.action_type, self.pootle_path))
+            "<FSAction(%s)%s: %s %s::%s>"
+            % (self.project, failed,
+               self.action_type, self.pootle_path, self.fs_path))
 
     @property
     def failed(self):

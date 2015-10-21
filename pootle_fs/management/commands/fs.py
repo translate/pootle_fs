@@ -146,9 +146,10 @@ class Command(BaseCommand):
             self.execute(*args, **options.__dict__)
         except Exception as e:
             do_raise = (
-                options
-                and options.traceback
-                or not isinstance(e, CommandError))
+                "--traceback" in argv
+                or (options
+                    and options.traceback
+                    or not isinstance(e, CommandError)))
             if do_raise:
                 raise
 

@@ -12,6 +12,8 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
+from pootle_fs.exceptions import MissingPluginError
+
 from pootle_fs_pytest.utils import (
     _register_plugin, _clear_plugins)
 
@@ -97,12 +99,15 @@ def test_save_project_bad_fs_type(tutorial_fs):
 @pytest.mark.django_db
 def test_save_project_fs_type_gone(tutorial_fs):
     """If the plugin that was registered is no longer available
-    you cannot save the project_fs unless you swithc to valid
+    you cannot save the project_fs unless you switch to valid
     plugin
     """
 
     _clear_plugins()
     _register_plugin(name="other")
+
+    with pytest.raises(MissingPluginError):
+        tutorial_fs.plugin.status()
 
     with pytest.raises(ValidationError):
         tutorial_fs.save()

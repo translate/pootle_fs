@@ -16,6 +16,8 @@ from pootle_fs.models import StoreFS
 
 
 def _test_response(response):
+    assert isinstance(response, ActionResponse)
+
     for k in response:
         assert all(
             isinstance(a, ActionStatus)
@@ -32,6 +34,11 @@ def _test_response(response):
             isinstance(a.original_status, Status)
             for a in response[k])
         for action in response[k]:
+            assert (
+                str(action)
+                == ("<FSAction(%s): %s %s::%s>"
+                    % (action.project, action.action_type,
+                       action.pootle_path, action.fs_path)))
             assert action.action_type == k
             assert action.complete is True
             assert action.failed is False
@@ -196,3 +203,27 @@ def test_action_response_on_success(fs_plugin):
         == 18)
     assert list(response.failed()) == []
     assert not response.has_failed
+
+
+@pytest.mark.django
+def test_response_arg(fs_plugin_suite):
+    plugin = fs_plugin_suite
+    plugin.status()
+    response = ActionResponse(plugin)
+    new_response = plugin.merge_translations(response=response)
+    assert response is new_response
+
+    new_response = plugin.add_translations(response=response)
+    assert response is new_response
+
+    new_response = plugin.pull_translations(response=response)
+    assert response is new_response
+
+    new_response = plugin.push_translations(response=response)
+    assert response is new_response
+
+    new_response = plugin.rm_translations(response=response)
+    assert response is new_response
+
+    new_response = plugin.sync_translations(response=response)
+    assert response is new_response

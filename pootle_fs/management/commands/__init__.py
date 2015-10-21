@@ -35,7 +35,11 @@ class SubCommand(BaseCommand):
                 % self.project.code)
 
     def get_project(self, project_code):
-        self.project = Project.objects.get(code=project_code)
+        try:
+            self.project = Project.objects.get(code=project_code)
+        except Project.DoesNotExist:
+            raise CommandError(
+                "Unrecognised project: %s" % project_code)
         return self.project
 
     def write_line(self, pootle_path, fs_path,

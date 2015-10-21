@@ -79,25 +79,27 @@ class Status(object):
                  fs_path=None, pootle_path=None):
         self.status = status
         self.store_fs = store_fs
-        self.store = store
+        if store_fs:
+            self.store = store_fs.store
+        else:
+            self.store = store
         self.fs_path = fs_path
         self.pootle_path = pootle_path
         self._set_paths()
 
     def __eq__(self, other):
-        eq = (
+        return (
             isinstance(other, self.__class__)
             and other.status == self.status
             and other.store_fs == self.store_fs
             and other.store == self.store
             and other.fs_path == self.fs_path
             and other.pootle_path == self.pootle_path)
-        return eq
 
     def __gt__(self, other):
         if isinstance(other, self.__class__):
             return self.pootle_path > other.pootle_path
-        return super(Status, self).__gt__(other)
+        return object.__gt__(other)
 
     def __str__(self):
         return (
@@ -106,6 +108,7 @@ class Status(object):
                self.pootle_path, self.fs_path))
 
     def _set_paths(self):
+
         if self.store_fs:
             self.fs_path = self.store_fs.path
             self.pootle_path = self.store_fs.pootle_path
@@ -410,7 +413,7 @@ class ProjectFSStatus(object):
         for store_fs in self._filtered_qs(to_remove):
             yield self.link_status_class("to_remove", store_fs=store_fs)
 
-    def get_up_to_date(self):
+    def get_unchanged(self):
         problem_paths = []
         for k, v in self.__status__.items():
             if v:
