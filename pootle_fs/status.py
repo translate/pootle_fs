@@ -99,6 +99,12 @@ class Status(object):
             return self.pootle_path > other.pootle_path
         return super(Status, self).__gt__(other)
 
+    def __str__(self):
+        return (
+            "<StoreFSStatus(%s): %s %s::%s>"
+            % (self.project, self.status,
+               self.pootle_path, self.fs_path))
+
     def _set_paths(self):
         if self.store_fs:
             self.fs_path = self.store_fs.path

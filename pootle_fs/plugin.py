@@ -55,7 +55,8 @@ class Plugin(object):
 
     @property
     def addable_translations(self):
-        for store in self.stores.filter(fs__isnull=True):
+        addable = self.stores.exclude(obsolete=True).filter(fs__isnull=True)
+        for store in addable:
             fs_path = self.get_fs_path(store.pootle_path)
             if fs_path:
                 yield store, fs_path
@@ -347,11 +348,17 @@ class Plugin(object):
             fs_status.store_fs.file.sync_to_pootle(
                 merge=True, pootle_wins=True)
             fs_status.store_fs.file.sync_from_pootle()
+            fs_status.store_fs.file.on_sync(
+                fs_status.store_fs.file.latest_hash,
+                fs_status.store_fs.store.get_max_unit_revision())
             response.add("merged_from_pootle", fs_status)
         for fs_status in status["merge_fs"]:
             fs_status.store_fs.file.sync_to_pootle(
                 merge=True, pootle_wins=False)
             fs_status.store_fs.file.sync_from_pootle()
+            fs_status.store_fs.file.on_sync(
+                fs_status.store_fs.file.latest_hash,
+                fs_status.store_fs.store.get_max_unit_revision())
             response.add("merged_from_fs", fs_status)
 
     def pull(self):
@@ -475,8 +482,7 @@ class Plugin(object):
         status = self.status(pootle_path=pootle_path, fs_path=fs_path)
         response = self.response_class(self)
         untracked = (
-            status["fs_untracked"] + status["pootle_untracked"]
-            + status["conflict_untracked"])
+            status["fs_untracked"] + status["pootle_untracked"])
 
         for fs_status in untracked:
             fs_store = StoreFS.objects.create(

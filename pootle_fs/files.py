@@ -212,6 +212,10 @@ class FSFile(object):
         """
         Pull FS file into Pootle
         """
+        current_hash = self.latest_hash
+        last_hash = self.store_fs.last_sync_hash
+        if self.store and last_hash == current_hash:
+            return
         logger.debug("Pulling file: %s" % self.path)
         if not self.store:
             self.create_store()
@@ -220,15 +224,14 @@ class FSFile(object):
             self.store_fs.save()
         self.sync_to_pootle()
 
-    def push(self):
+    def push(self, debug=False):
         """
         Push Pootle ``Store`` into FS
         """
         current_revision = self.store.get_max_unit_revision()
         last_revision = self.store_fs.last_sync_revision
-        if self.exists:
-            if last_revision and (last_revision == current_revision):
-                return
+        if self.exists and last_revision == current_revision:
+            return
         logger.debug("Pushing file: %s" % self.path)
         directory = os.path.dirname(self.store_fs.file.file_path)
         if not os.path.exists(directory):
