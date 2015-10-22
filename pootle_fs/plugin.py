@@ -161,8 +161,6 @@ class Plugin(object):
           ``pootle_path``
         """
         from .models import StoreFS
-        if not self.is_cloned:
-            self.pull()
         to_create = status["pootle_untracked"]
         if force:
             to_create += status["conflict_untracked"]
@@ -201,9 +199,6 @@ class Plugin(object):
           ``pootle_path``
         """
         from .models import StoreFS
-        if not self.is_cloned:
-            self.pull()
-
         to_create = status["fs_untracked"]
         if force:
             to_create = to_create + status["conflict_untracked"]
