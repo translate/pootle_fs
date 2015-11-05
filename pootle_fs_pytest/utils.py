@@ -285,7 +285,7 @@ def _update_store(plugin, pootle_path):
         User = get_user_model()
         user = User.objects.get_system_user()
     unit.store = store
-    unit = store.addunit(unit, user=user, revision=revision)
+    unit = store.addunit(unit, user=user, update_revision=revision)
     store.save()
 
 

@@ -17,6 +17,7 @@ from pootle_app.models import Directory
 from pootle_language.models import Language
 from pootle_statistics.models import SubmissionTypes
 from pootle_store.models import Store
+from pootle_store import models as store_models
 from pootle_translationproject.models import TranslationProject
 
 from .models import FS_WINS, POOTLE_WINS, StoreFS
@@ -259,6 +260,10 @@ class FSFile(object):
         """
         Update Pootle ``Store`` with the parsed FS file.
         """
+        resolve_conflict = (
+            pootle_wins
+            and store_models.POOTLE_WINS
+            or store_models.FILE_WINS)
         with open(self.file_path) as f:
             if merge:
                 revision = self.store_fs.last_sync_revision
@@ -266,12 +271,11 @@ class FSFile(object):
                 revision = self.store.get_max_unit_revision() + 1
             tmp_store = getclass(f)(f.read())
             self.store.update(
-                overwrite=True,
-                store=tmp_store,
+                tmp_store,
                 submission_type=SubmissionTypes.UPLOAD,
                 user=self.plugin.pootle_user,
-                revision=revision,
-                pootle_wins=pootle_wins)
+                store_revision=revision,
+                resolve_conflict=resolve_conflict)
         logger.debug("Pulled file: %s" % self.path)
         self.on_sync(
             self.latest_hash,
