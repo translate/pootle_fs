@@ -1,1 +1,1 @@
--e git+https://github.com/phlax/pootle@no_mtime#egg=pootle
+Pootle>=2.7.3b1
