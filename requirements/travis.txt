@@ -3,7 +3,7 @@
 factory_boy>=2.5
 pytest
 pytest-cov
-pytest-django>=3.8,<3.9
+pytest-django>=3.9,<3.10
 pytest-capturelog
 coveralls
 MySQL-python
